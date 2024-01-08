@@ -76,7 +76,11 @@ def json_get(url):
     if r.status_code == 404:
         return []
 
-    print("Error: %s" % r.status_code)
+    if r.status_code == 400:
+        print("Error 400 on %s (%s), making empty return", (url, r.text.rstrip()))
+        return []
+
+    print("Error: %s (%s) getting %s" % (r.status_code, r.text.rstrip(), url))
     sys.exit(1)
     
 
@@ -100,8 +104,12 @@ def get_manifest(repo, tag):
                      headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json"})
 
     if r.status_code == 200:
-        return r.headers['Docker-Content-Digest'], \
-            json_get("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, tag))
+        dcd = r.headers['Docker-Content-Digest']
+        mani = json_get("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, tag))
+        if r.status_code == 200:
+            return dcd, mani
+        # The error will already have been reported in json_get so don't bother
+        # here
 
     return "", {}
 
@@ -169,6 +177,10 @@ def delete_most_manifests(repo_name):
     the_tags = list(filter(lambda x: not x.startswith("_"), \
                            repos[repo_name].keys()) )
 
+    if len(the_tags) == 0:
+        print("* No some tags to delete")
+        return
+
     # Get the tags sorted by time
     tag_bytime = sorted(the_tags, key=lambda x: repos[repo_name][x]["created"])
 
@@ -214,8 +226,14 @@ def delete_all_manifests(repo_name):
     # Mission:
     # - Delete all tags
 
-    print("* Delete all tags: %s" % list(repos[repo_name].keys()))
-    sys.exit(0)
+    tags = list(repos[repo_name].keys())
+
+    if len(tags) == 0:
+        print("* No tags to delete")
+        return
+
+    print("* Delete all tags: %s" % tags)
+    # enter = input("Press enter to proceed")
 
     for tag in repos[repo_name]:
         repo_tag = f'{repo_name}:{tag}'
