@@ -1,13 +1,26 @@
 #!/usr/bin/env python
 #
-# Script to collect images inventory from our kubernetes clusters
+# Script to collect images inventory from our kubernetes clusters.
+# The script will use all the the configured contexts to collect lists
+# of docker images in use and save the list to images.json in the CWD.
+#
+# Copyright (C) 2024, Nicolai Langfeldt, Schibsted Products and Technology
 #
 # Prerequisites:
 # - apt install python3-kubernetes
 #
 # Usage:
-# - Have good credentials for all your clusters
-# - Log in to aws if you have cluster(s) there
+# - Edit the "us" regular expression to match your registry, this
+#   will be used to only save images from your registry to the images.json
+#   file.
+# - Have good credentials for all your clusters.
+# - Log in to AWS if you have cluster(s) there
+#
+# Bugs:
+# - Could use a common configuration file with the registryevictor.py
+# - If you have clusters in more than one AWS account this script will
+#   not work.  You have to devise a way to change AWS_PROFILE(?) before
+#   interogating the clusters in AWS accounts.
 
 import re
 import sys
@@ -30,13 +43,13 @@ def load_from_kubernetes(context):
             continue
         
         for c in i.status.container_statuses:
-            # print(c)
             if us.match(c.image):
                 count += 1
                 images[c.image] = { "name": c.name, "image": c.image_id }
 
     print("Found %s pods in %s" % (count, context))
     print("Images until now: %d" % len(images))
+
 
 def main():
     contexts, active_context = config.list_kube_config_contexts()

@@ -3,8 +3,23 @@
 # Script to garbage collect our (VGs) docker-registry by comparing the
 # running kubernetes with the things in the registry.
 #
-# Prerequisites:
+# Copyright (C) 2024, Nicolai Langfeldt, Schibsted Products and Technology
 #
+# Prerequisites:
+# - apt install python3-requests
+# - pip install dateutil
+# - run kubernetes-inventory.py FIRST to get a list of all
+#   active images in our k8s clusters into images.json
+#
+# Bugs:
+# - Does not support docker-registry request pagiation.
+#   - Instead submitting n=10000
+#
+# Features:
+# - Multiple tags can refer to the same manifest. The script does not
+#   know and will delete the manifest if one tag is marked for
+#   eviction.  The api does not support deleting tags...
+# 
 
 import re
 import sys
@@ -106,8 +121,6 @@ def repo_lookup(repo_name):
         return
     
     for tag in get_tags(repo_name):
-
-
         tagkey = f'{repo_name}:{tag}'
 
         spinner_next()
@@ -145,7 +158,6 @@ def delete_most_manifests(repo_name):
     # Get the tags sorted by time
     tag_bytime = sorted(the_tags, key=lambda x: repos[repo_name][x]["created"])
 
-
     # Keep the 3 newest tags:
     tags_to_keep = { tag_bytime[-1]: True, \
                      tag_bytime[-2]: True, \
@@ -166,17 +178,23 @@ def delete_most_manifests(repo_name):
     # Delete the tags, except the ones we want to keep
     for tag in tag_bytime:
         repo_tag = f'{repo_name}:{tag}'
-        print(" * %s: %s" % (tag, repos[repo_name][tag]))
+        print("? %s: %s" % (tag, repos[repo_name][tag]))
         if tag in tags_to_keep:
-            print(" + Keep %s" % repo_tag)
+            print("+ Keep %s" % repo_tag)
             continue
         
-        print(" - Delete %s" % repo_tag)
+        print("- Delete %s" % repo_tag)
         delete_manifest(repo_tag)
     
 
 def delete_all_manifests(repo_name):
-    pass
+    # Mission:
+    # - Delete all tags
+
+    for tag in repos[repo_name]:
+        repo_tag = f'{repo_name}:{tag}'
+        print(" - Delete %s" % repo_tag)
+        delete_manifest(repo_tag)
 
 
 def evict_repos(examined):
@@ -211,8 +229,22 @@ def main():
         used_repo[repo] = True
         used_repo_tag[i] = True
 
-    repo_lookup("/ap-mm/ap-breakingbot/breakingbot")
-    evict_repos(["/ap-mm/ap-breakingbot/breakingbot"])
+    do = [ "/svp/rtmp-relay", "/svp/scheduler-api",
+           "/svp/shovel-monkey", "/svp/sifter", "/svp/stenographer-new",
+           "/svp/stream-configuration-api", "/svp/stream-converter",
+           "/svp/subtitles", "/svp/svp-api-patcher", "/svp/token", "/svp/tts",
+           "/svp/utils", "/svp/vmap-api", "/svp/web-player-chromecast",
+           "/svp/yata", "/svp/yats-api", "/svp/yats-dispatcher",
+           "/svp/yats-downloader", "/svp/yats-dynamic-preview",
+           "/svp/yats-encoder", "/svp/yats-graphql", "/svp/yats-janitor",
+           "/svp/yats-media-inspector", "/svp/yats-publishing-api",
+           "/svp/yats-publishing-worker", "/svp/yats-sitrep",
+           "/svp/yats-sitrep-dealer", "/svp/yats-snitch",
+           "/svp/yats-transcoder-api"]
+
+    for d in do:
+        repo_lookup(d)
+        evict_repos([d])
     sys.exit(1)
 
     repos = get_repositories()
@@ -242,6 +274,3 @@ repos = {}
 
 if __name__ == "__main__":
     main()
-
-True
-
