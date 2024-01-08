@@ -25,7 +25,7 @@
 #
 # Usage:
 #   With log:
-#     PYTHONUNBUFFERED=TRUE ./registryevictor.py 2>&1 | tee eviction.log
+#     PYTHONUNBUFFERED=TRUE ./registryevictor.py 2>&1 | tee eviction-$(date '+%F-%T').log
 #   Without log:
 #     ./registryevictor.py
 # 
@@ -119,7 +119,10 @@ def delete_manifest(repo_tag):
 ## Catalogue all the repos and tags
     
 def repo_lookup(repo_name):
-    print("\bREPO %s" % repo_name)
+    print("REPO %s" % repo_name)
+
+    if repo_name.startswith("/"):
+        sys.exit("Weirdness in repo_lookup")
 
     if repo_name not in repos:
         repos[repo_name] = {}
@@ -159,6 +162,8 @@ def delete_most_manifests(repo_name):
     #   - The 3 newest
     #   - The ones in use
     #   - The 2 newsest before the ones in use
+    global used_repo
+    global used_repo_tag
 
     # List all actuall tags, this excludes the ones starting in underscore
     the_tags = list(filter(lambda x: not x.startswith("_"), \
@@ -210,6 +215,7 @@ def delete_all_manifests(repo_name):
     # - Delete all tags
 
     print("* Delete all tags: %s" % list(repos[repo_name].keys()))
+    sys.exit(0)
 
     for tag in repos[repo_name]:
         repo_tag = f'{repo_name}:{tag}'
@@ -228,9 +234,13 @@ def evict_repo(repo_name):
         return
 
     delete_all_manifests(repo_name)
-            
 
-def main():
+
+def load_image_list():
+    global images
+    global used_repo
+    global used_repo_tag
+
     # This is the list of image:tags we use in kubernetes
     with open("images.json", "r") as f:
         images = json.loads(f.read())
@@ -244,10 +254,22 @@ def main():
         if not i.startswith(regPrefix):
             continue
         
-        i = i.replace(REGISTRY,"",1)
-        (repo, tag) = i.split(":")
+        j = i.replace(regPrefix,"",1)
+
+        # A bit of paranoid sanity checking
+        if j == i:
+            sys.exit("That's weird!")
+        if j.startswith("/"):
+            sys.exit("That's weird II!")
+
+        (repo, tag) = j.split(":")
         used_repo[repo] = True
         used_repo_tag[i] = True
+
+
+def main():
+
+    load_image_list()
 
     repos = get_repositories()
 
