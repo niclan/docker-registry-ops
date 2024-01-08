@@ -77,7 +77,7 @@ def json_get(url):
         return []
 
     if r.status_code == 400:
-        print("Error 400 on %s (%s), making empty return", (url, r.text.rstrip()))
+        print("Error 400 on %s (%s), making empty return" % (url, r.text.rstrip()))
         return []
 
     print("Error: %s (%s) getting %s" % (r.status_code, r.text.rstrip(), url))
