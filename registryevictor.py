@@ -209,7 +209,7 @@ def delete_all_manifests(repo_name):
     # Mission:
     # - Delete all tags
 
-    print("* Delete all tags: %s" % list(repos[repo_name].keys))
+    print("* Delete all tags: %s" % list(repos[repo_name].keys()))
 
     for tag in repos[repo_name]:
         repo_tag = f'{repo_name}:{tag}'
