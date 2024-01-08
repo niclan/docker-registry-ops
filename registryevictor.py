@@ -281,9 +281,10 @@ def load_image_list():
     """Load image list from json file previously written by
     kubernetes-inventory.py"""
 
-    global images
+    images = {}
     global used_repo
     global used_repo_tag
+    global REGISTRY
 
     # This is the list of image:tags we use in kubernetes
     with open("images.json", "r") as f:
@@ -310,10 +311,12 @@ def load_image_list():
         used_repo[repo] = True
         used_repo_tag[i] = True
 
+    return images
 
 def main():
+    global images
 
-    load_image_list()
+    images = load_image_list()
 
     repos = get_repositories()
 
@@ -325,7 +328,6 @@ def main():
 no_manifest = {}
 used_repo = {}
 used_repo_tag = {}
-images = {}
 repos = {}
 
 if __name__ == "__main__":
