@@ -45,7 +45,8 @@ def load_from_kubernetes(context):
         for c in i.status.container_statuses:
             if us.match(c.image):
                 count += 1
-                images[c.image] = { "name": c.name, "image": c.image_id }
+                images[c.image] = { "name": c.name, "image": c.image_id, "namespace": i.metadata.namespace, \
+                                    "pod": i.metadata.name, "cluster": context }
 
     print("Found %s pods in %s" % (count, context))
     print("Images until now: %d" % len(images))
