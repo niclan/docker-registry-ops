@@ -37,17 +37,19 @@ from dateutil import parser
 import datetime
 import requests
 
+# The registry to work on
 REGISTRY="docker.vgnett.no"
 
 # Spinner to show progress
-
 spinner = "|/-\\"
 spinner_idx = 0
 
-# Do we have a tty?
+# But only if we have a tty
 is_tty = sys.stdout.isatty()
 
 def spinner_next():
+    """Print the next spinner character and backspace to so that new output on the line
+    will overwrite the spinner character"""
     global is_tty
     global spinner_idx
     global spinner
@@ -67,7 +69,8 @@ def spinner_next():
 # We should have one that understands pagination, but whatever
 
 def json_get(url):
-        
+    """Get URL and return json or empty list on error"""
+
     r = requests.get(url)
 
     if r.status_code == 200:
@@ -89,6 +92,8 @@ def get_repositories():
 
 
 def get_tags(repo):
+    """Get all tags for a repo"""
+
     j = json_get("https://%s/v2/%s/tags/list?n=10000" % (REGISTRY, repo))
     if "tags" not in j:
         return []
@@ -97,9 +102,10 @@ def get_tags(repo):
 
 
 def get_manifest(repo, tag):
-    # Two queries needed to get what we want from the manifest,
-    # this first query gets the digest needed for deleting it
-    # the second has the other meta data we need.
+    """Get the manifest for a tag.  This requires two queries to the
+    registry.  The first one gets the digest, the second one gets the
+    manifest itself.  The digest is needed to delete the manifest."""
+
     r = requests.get("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, tag),
                      headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json"})
 
@@ -117,6 +123,11 @@ def get_manifest(repo, tag):
 ## Delete functions
 
 def delete_manifest(repo_tag):
+    """Delete the manifest for a tag.  This requires lookup of the
+    digest corresponding to the tag so that it can be passed to the
+    API.
+    """
+
     (repo, tag) = repo_tag.split(":")
     dig = repos[repo][tag]['digest']
     print("-- Deleting manifest for %s:%s" % (repo_tag, dig))
@@ -127,6 +138,12 @@ def delete_manifest(repo_tag):
 ## Catalogue all the repos and tags
     
 def repo_lookup(repo_name):
+    """Look up the needed information from each repository:
+    - List of all tags
+    - The manifest info for each tag
+    - Creation date in order to sort by date
+    """
+
     print("REPO %s" % repo_name)
 
     if repo_name.startswith("/"):
@@ -165,11 +182,13 @@ def repo_lookup(repo_name):
 # Eviction logic
 
 def delete_most_manifests(repo_name):
-    # Mission:
-    # - Delete most tags, except
-    #   - The 3 newest
-    #   - The ones in use
-    #   - The 2 newsest before the ones in use
+    """For repositories that are in use in kubernetes delete the tags we don't need.
+
+    I.e., delete most tags, except:
+       - The 3 newest
+       - The ones in use
+       - The 2 newsest before the ones in use
+    """
     global used_repo
     global used_repo_tag
 
@@ -223,8 +242,9 @@ def delete_most_manifests(repo_name):
     
 
 def delete_all_manifests(repo_name):
-    # Mission:
-    # - Delete all tags
+    """Delete all manifests refered to all the tags in a repo.  This
+    should only be used on repositories that are not used by k8s.
+    """
 
     tags = list(repos[repo_name].keys())
 
@@ -242,6 +262,9 @@ def delete_all_manifests(repo_name):
 
 
 def evict_repo(repo_name):
+    """Fint out how much should be deleted and call the apropriate function.
+    For unused repos: all the tags
+    For used repos: just some of the tags"""
 
     if "_notags" in repos[repo_name]:
         print(" * Repo %s has no tags, nothing to do" % repo_name)
@@ -255,6 +278,9 @@ def evict_repo(repo_name):
 
 
 def load_image_list():
+    """Load image list from json file previously written by
+    kubernetes-inventory.py"""
+
     global images
     global used_repo
     global used_repo_tag
