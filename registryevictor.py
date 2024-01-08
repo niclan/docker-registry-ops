@@ -22,6 +22,12 @@
 # - Multiple tags can refer to the same manifest. The script does not
 #   know and will delete the manifest if one tag is marked for
 #   eviction.  The api does not support deleting tags...
+#
+# Usage:
+#   With log:
+#     PYTHONUNBUFFERED=TRUE ./registryevictor.py 2>&1 | tee eviction.log
+#   Without log:
+#     ./registryevictor.py
 # 
 
 import re
@@ -203,11 +209,11 @@ def delete_all_manifests(repo_name):
     # Mission:
     # - Delete all tags
 
-    print("* Delete all tags: %s" % repos[repo_name])
+    print("* Delete all tags: %s" % list(repos[repo_name].keys))
 
     for tag in repos[repo_name]:
         repo_tag = f'{repo_name}:{tag}'
-        print(" - Delete %s" % repo_tag)
+        print("- Delete %s" % repo_tag)
         delete_manifest(repo_tag)
 
 
