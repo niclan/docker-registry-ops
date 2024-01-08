@@ -7,7 +7,7 @@
 #
 # Prerequisites:
 # - apt install python3-requests
-# - pip install dateutil
+# - pip install python-dateutil
 # - run kubernetes-inventory.py FIRST to get a list of all
 #   active images in our k8s clusters into images.json
 # - After running this script let loose the docker-registry
@@ -228,6 +228,9 @@ def main():
     # This is the list of image:tags we use in kubernetes
     with open("images.json", "r") as f:
         images = json.loads(f.read())
+
+    if len(images) < 10:
+        sys.exit("The image list seems unreasonably short!")
 
     regPrefix = f'{REGISTRY}/'
 
