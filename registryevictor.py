@@ -10,6 +10,9 @@
 # - pip install dateutil
 # - run kubernetes-inventory.py FIRST to get a list of all
 #   active images in our k8s clusters into images.json
+# - After running this script let loose the docker-registry
+#   garbage-collector inside the docker container:
+#   `docker exec -it $CONTAINER /bin/registry garbage-collect /etc/docker/registry/config.yml`
 #
 # Bugs:
 # - Does not support docker-registry request pagiation.
@@ -102,10 +105,10 @@ def get_manifest(repo, tag):
 def delete_manifest(repo_tag):
     (repo, tag) = repo_tag.split(":")
     dig = repos[repo][tag]['digest']
-    print("Deleting manifest for %s:%s" % (repo_tag, dig))
+    print("-- Deleting manifest for %s:%s" % (repo_tag, dig))
     r = requests.delete("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, dig))
     if r.status_code != 200 and r.status_code != 202:
-        print("Result: %s: %s" % (r.status_code, r.text))
+        print("--- Result: %s: %s" % (r.status_code, r.text.rstrip()))
 
 ## Catalogue all the repos and tags
     
@@ -158,10 +161,15 @@ def delete_most_manifests(repo_name):
     # Get the tags sorted by time
     tag_bytime = sorted(the_tags, key=lambda x: repos[repo_name][x]["created"])
 
+    print("* Delete some tags in repo (by time): %s" % tag_bytime)
+
     # Keep the 3 newest tags:
-    tags_to_keep = { tag_bytime[-1]: True, \
-                     tag_bytime[-2]: True, \
-                     tag_bytime[-3]: True }
+    tags_to_keep = { tag_bytime[-1]: True }
+    try:
+        tags_to_keep[tag_bytime[-2]] = True
+        tags_to_keep[tag_bytime[-3]] = True
+    except IndexError:
+        pass
 
     # Want to delete all tags but the 3 newest before the ones in use
     used_tags = {}
@@ -172,9 +180,13 @@ def delete_most_manifests(repo_name):
 
         used_idx = tag_bytime.index(tag)
         tags_to_keep[tag] = True
-        tags_to_keep[tag_bytime[used_idx-1]] = True
-        tags_to_keep[tag_bytime[used_idx-2]] = True
+        try:
+            tags_to_keep[tag_bytime[used_idx-1]] = True
+            tags_to_keep[tag_bytime[used_idx-2]] = True
+        except IndexError:
+            pass
 
+    print("* Tags to keep: %s" % list(tags_to_keep.keys()))
     # Delete the tags, except the ones we want to keep
     for tag in tag_bytime:
         repo_tag = f'{repo_name}:{tag}'
@@ -191,26 +203,25 @@ def delete_all_manifests(repo_name):
     # Mission:
     # - Delete all tags
 
+    print("* Delete all tags: %s" % repos[repo_name])
+
     for tag in repos[repo_name]:
         repo_tag = f'{repo_name}:{tag}'
         print(" - Delete %s" % repo_tag)
         delete_manifest(repo_tag)
 
 
-def evict_repos(examined):
+def evict_repo(repo_name):
 
-    for repo_name in examined:
-        if "_notags" in repos[repo_name]:
-            print(" * Repo %s has no tags, nothing to do" % repo_name)
-            continue
+    if "_notags" in repos[repo_name]:
+        print(" * Repo %s has no tags, nothing to do" % repo_name)
+        return
 
-        if repo_name in used_repo:
-            delete_most_manifests(repo_name)
-            continue
+    if repo_name in used_repo:
+        delete_most_manifests(repo_name)
+        return
 
-        else:
-            print(" * Repo %s not in use" % repo_name)
-            delete_all_manifests(repo_name)
+    delete_all_manifests(repo_name)
             
 
 def main():
@@ -229,42 +240,12 @@ def main():
         used_repo[repo] = True
         used_repo_tag[i] = True
 
-    do = [ "/svp/rtmp-relay", "/svp/scheduler-api",
-           "/svp/shovel-monkey", "/svp/sifter", "/svp/stenographer-new",
-           "/svp/stream-configuration-api", "/svp/stream-converter",
-           "/svp/subtitles", "/svp/svp-api-patcher", "/svp/token", "/svp/tts",
-           "/svp/utils", "/svp/vmap-api", "/svp/web-player-chromecast",
-           "/svp/yata", "/svp/yats-api", "/svp/yats-dispatcher",
-           "/svp/yats-downloader", "/svp/yats-dynamic-preview",
-           "/svp/yats-encoder", "/svp/yats-graphql", "/svp/yats-janitor",
-           "/svp/yats-media-inspector", "/svp/yats-publishing-api",
-           "/svp/yats-publishing-worker", "/svp/yats-sitrep",
-           "/svp/yats-sitrep-dealer", "/svp/yats-snitch",
-           "/svp/yats-transcoder-api"]
-
-    for d in do:
-        repo_lookup(d)
-        evict_repos([d])
-    sys.exit(1)
-
     repos = get_repositories()
-
-    i = 0
-    examined = []
 
     for repo_name in repos:
         repo_lookup(repo_name)
-        evict_repos([repo_name])
-        # examined << repo_name
-        # i += 1
-        # if i > 10:
-        # examined = []
-        # sys.exit(1)
-        # i = 0
+        evict_repo(repo_name)
 
-    # evict_repos()
-
-#
 
 no_manifest = {}
 used_repo = {}
