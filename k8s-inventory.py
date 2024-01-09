@@ -36,20 +36,47 @@ def load_from_kubernetes(context):
     k8s = client.CoreV1Api(
         api_client=config.new_client_from_config(context=context))
 
-    count = 0 
-
+    # Kubernetes pod phases:
+    # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
+    #
+    # ImagePullBackOff is not a kubernetes phase, but for the registry-checker it's
+    # interestng
+    no_phase = { 'Running': False, 'Pending': False, 'Succeeded': False, \
+                 'Failed': False, 'Unknown': False, 'ImagePullBackOff': False }
+    count = 0
+    
     for i in k8s.list_pod_for_all_namespaces(watch=False).items:
-        if i.status.container_statuses is None:
-            continue
         
+        if i.status.container_statuses is None: continue
+
         for c in i.status.container_statuses:
             if us.match(c.image):
                 count += 1
-                images[c.image] = { "name": c.name, "image": c.image_id, "namespace": i.metadata.namespace, \
-                                    "pod": i.metadata.name, "cluster": context }
+                if c.image not in images:
+                    images[c.image] = { '_phase': no_phase.copy() }
 
-    print("Found %s pods in %s" % (count, context))
-    print("Images until now: %d" % len(images))
+                ipbo = c.state.waiting is not None and \
+                    c.state.waiting.reason == 'ImagePullBackOff'
+                
+                images[c.image]['_phase']['ImagePullBackOff'] = ipbo
+
+                # We don't need to know the state of all the
+                # individual pods, but we do need to know if the image
+                # is used in a running pod. This is the
+                # namespace-point of suffcient specificity to save if
+                # the registry tag is running somewhere and where that
+                # is.
+                pod_name = f'k8s;{context};{i.metadata.namespace};{i.metadata.name}'
+
+                if pod_name not in images[c.image]:
+                    images[c.image][pod_name] = no_phase.copy()
+
+                images[c.image][pod_name][i.status.phase] = True
+                images[c.image][pod_name]['ImagePullBackOff'] = ipbo
+                images[c.image]['_phase'][i.status.phase] = True
+                
+    print("* Found %s matching pods" % count)
+    print("* Images until now: %d" % len(images))
 
 
 def main():
