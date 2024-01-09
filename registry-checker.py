@@ -7,45 +7,104 @@
 #
 
 import sys
+import csv
 import json
-from registryevictor import get_repositories, get_tags, spinner_next, get_manifest, load_image_list
+import requests
+from registryevictor import spinner_next
 
 REGISTRY="docker.vgnett.no"
 used_repo = {}
 used_repo_tag = {}
 
-def main():
-    global images
-    
-    all_tags = []
+def get_manifest_health(repo, tag):
+    """Get the manifest for a tag
+    registry.  The first one gets the digest, the second one gets the
+    manifest itself.  The digest is needed to delete the manifest."""
 
-    images = load_image_list()
+    result = { 'digest': {}, 'manifest': {} }
+
+    d = requests.get("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, tag),
+                     headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json"})
+
+    m = requests.get("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, tag))
+
+    return d, m
+
+def main():
+    errors = []
 
     with open("images.json", "r") as f:
         image_report = json.load(f)
 
-    # images = ['docker.vgnett.no/svp/live-api:2f7c1e6.466']
-
     spinner_next()
-    
     regPrefix = f'{REGISTRY}/'
 
-    for path in images:
+    i = 0
+
+    for path in image_report:
         spinner_next()
 
         if not path.startswith(regPrefix):
             continue
         
         repo_tag = path.replace(regPrefix,"",1)
-        
-        # print("Repo-tag: %s" % repo_tag)
-        
+
+        # We only care about images that are running or pending, the
+        # state of way too many dead pods is kept around.
+        if not (image_report[path]['_phase']['Running'] or
+                image_report[path]['_phase']['Pending'] or
+                image_report[path]['_phase']['ImagePullBackOff']):
+            continue
+
+        i += 1
+
         (repo, tag) = repo_tag.split(":")
 
-        (checksum, manifest) = get_manifest(repo, tag)
-        if manifest is None or len(manifest) == 0 or checksum is None or len(checksum) == 0:
-            print("Manifest for tag %s is wrong, cluster %s namespace %s" % \
-                  (repo_tag, image_report[path]['cluster'], image_report[path]['namespace']))
+        (digest, manifest) = get_manifest_health(repo, tag)
+
+        if digest.status_code != 200 or manifest.status_code != 200:
+
+            wrongs = []
+            if digest.status_code != 200:
+                wrongs.append("no digest")
+            if manifest.status_code != 200:
+                wrongs.append("no manifest")
+            if image_report[path]['_phase']['ImagePullBackOff']:
+                wrongs.append("ImagePullBackOff")
+
+            namespaces = [ ";".join(ns.split(";")[1:3])
+                           for ns in image_report[path]
+                             if not ns.startswith("_") and
+                               (image_report[path][ns]['Running'] or
+                                image_report[path][ns]['Pending'] or
+                                image_report[path][ns]['ImagePullBackOff']) ]
+            
+            namespaces = list(set(namespaces))
+            namespaces.sort()
+
+            errors.append({ 'tag': repo_tag, 'wrongs': wrongs, 'namespaces': namespaces })
+
+            print("  Examined %d/%d images, %d errors" % (i, len(image_report), len(errors)),
+                  end="\r", flush=True)
+
+    print("")
+    
+    if len(errors) == 0:
+        print("Nothing wrong here!")
+
+    with open("registry-check.json", "w") as f:
+        f.write(json.dumps(errors, indent=2, sort_keys=True))
+    print("Wrote report to %s" % "registry-check.json")
+
+    with open("registry-check.csv", "w") as f:
+        w = csv.DictWriter(f, errors[0].keys())
+        w.writeheader()
+        for e in errors:
+            w.writerow(e)
+    print("Wrote report to %s" % "registry-check.csv")
+
+    # print("Image %s is used or wanted in %s" % (repo_tag, namespaces))
+
 
 
 if __name__ == "__main__":
