@@ -2,6 +2,7 @@
 *~
 .emacs*
 images.json
+check-report-*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
