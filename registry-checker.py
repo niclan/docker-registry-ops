@@ -10,11 +10,16 @@ import sys
 import csv
 import json
 import requests
+from datetime import datetime
+from os import mkdir, chdir
 from registryevictor import spinner_next
 
 REGISTRY="docker.vgnett.no"
+DIRNAME = "check-report-%s" % datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+
 used_repo = {}
 used_repo_tag = {}
+
 
 def get_manifest_health(repo, tag):
     """Get the manifest for a tag
@@ -35,6 +40,9 @@ def main():
 
     with open("images.json", "r") as f:
         image_report = json.load(f)
+
+    mkdir(DIRNAME)
+    chdir(DIRNAME)
 
     spinner_next()
     regPrefix = f'{REGISTRY}/'
@@ -94,18 +102,16 @@ def main():
 
     with open("registry-check.json", "w") as f:
         f.write(json.dumps(errors, indent=2, sort_keys=True))
-    print("Wrote report to %s" % "registry-check.json")
+    print("Wrote report to %s/%s" % (DIRNAME, "registry-check.json"))
 
     with open("registry-check.csv", "w") as f:
         w = csv.DictWriter(f, errors[0].keys())
         w.writeheader()
         for e in errors:
             w.writerow(e)
-    print("Wrote report to %s" % "registry-check.csv")
+    print("Wrote report to %s/%s" % (DIRNAME, "registry-check.csv"))
 
     # print("Image %s is used or wanted in %s" % (repo_tag, namespaces))
-
-
 
 if __name__ == "__main__":
     main()
