@@ -33,9 +33,9 @@
 import re
 import sys
 import json
-from dateutil import parser
 import datetime
 import requests
+from dateutil import parser
 
 # The registry to work on
 REGISTRY="docker.vgnett.no"
