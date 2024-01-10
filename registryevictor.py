@@ -221,7 +221,7 @@ def delete_most_manifests(repo_name):
             continue
 
         used_idx = tag_bytime.index(tag)
-        tags_to_keep[tag] = True
+        tags_to_keep[used_idx] = True
         try:
             tags_to_keep[tag_bytime[used_idx-1]] = True
             tags_to_keep[tag_bytime[used_idx-2]] = True
