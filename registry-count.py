@@ -15,7 +15,10 @@ def main():
 
     spinner_next()
 
+    num_repos = 0
+
     for repo_name in get_repositories():
+        num_repos += 1
         spinner_next()
         tags = get_tags(repo_name)
         if tags is None or len(tags) == 0:
@@ -25,7 +28,7 @@ def main():
 
         print("  Tags 'til now: %d  " % len(all_tags), end="\r", flush=True)
     # Print number of tags
-    print("Number of tags: %d" % len(all_tags))
+    print("Number of repositories: %d, tags: %d" % (num_repos, len(all_tags)))
 
 if __name__ == "__main__":
     main()
