@@ -95,9 +95,10 @@ class Registry:
             if self.verbose:
                 print("-- (not really) Deleting manifest for %s:%s" % (repo, digest))
             return
-    
+
         if self.verbose:
-            print("-- Deleting manifest for %s:%s" % (repo, dig))
+            print("-- Deleting manifest for %s:%s" % (repo, digest))
+
         r = requests.delete("https://%s/v2/%s/manifests/%s" % (self.registry, repo, digest))
         if r.status_code != 200 and r.status_code != 202:
             print("--- Error? Result: %s: %s" % (r.status_code, r.text.rstrip()))
@@ -105,8 +106,3 @@ class Registry:
 
         if self.debug:
             print("--- Result: %s: %s" % (r.status_code, r.text.rstrip()))
-            
-
-
-
-
