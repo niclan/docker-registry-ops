@@ -62,7 +62,6 @@ def repo_lookup(repo_name):
 
     print("REPO %s" % repo_name)
 
-
     if repo_name.startswith("/"):
         sys.exit("Weirdness in repo_lookup")
 
@@ -240,7 +239,7 @@ def main():
     parser.add_argument('-d', '--delete', action='store_true', \
                         help='Actually delete the manifests', default=False)
     parser.add_argument('-r', '--repository', action='store', \
-                        help='Only work on this repository')
+                        help='Only work on this repository instead of all')
     parser.add_argument('-D', '--debug', action='store_true', \
                         help='Debug', default=False)
     parser.add_argument('-p', '--pause', action='store_true', \
