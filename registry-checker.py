@@ -10,9 +10,10 @@ import sys
 import csv
 import json
 import requests
-from datetime import datetime
+import argparse
+from Spinner import Spinner
 from os import mkdir, chdir
-from registryevictor import spinner_next
+from datetime import datetime
 
 REGISTRY="docker.vgnett.no"
 DIRNAME = "check-report-%s" % datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
@@ -35,22 +36,14 @@ def get_manifest_health(repo, tag):
 
     return d, m
 
-def main():
-    errors = []
 
-    with open("images.json", "r") as f:
-        image_report = json.load(f)
-
-    mkdir(DIRNAME)
-    chdir(DIRNAME)
-
-    spinner_next()
+def examine_by_report(image_report):
     regPrefix = f'{REGISTRY}/'
 
     i = 0
 
     for path in image_report:
-        spinner_next()
+        spinner.next()
 
         if not path.startswith(regPrefix):
             continue
@@ -94,6 +87,24 @@ def main():
 
             print("  Examined %d/%d images, %d errors" % (i, len(image_report), len(errors)),
                   end="\r", flush=True)
+
+        return errors
+
+def main():
+    errors = []
+
+    global spinner
+    spinner = Spinner()
+
+    with open("images.json", "r") as f:
+        image_report = json.load(f)
+
+    mkdir(DIRNAME)
+    chdir(DIRNAME)
+
+    spinner.next()
+
+    errors = examine_by_report(image_report)
 
     print("")
     

@@ -25,8 +25,10 @@
 import re
 import sys
 import json
+import pprint
 from kubernetes import client, config
 from kubernetes.client import configuration
+from kubernetes.client.rest import ApiException
 
 def load_from_kubernetes(context):
     # Change cluster context
@@ -89,7 +91,14 @@ def main():
 
     print("Finding images in available contexts")
     for context in contexts:
-        load_from_kubernetes(context)
+        try:
+            load_from_kubernetes(context)
+        except ApiException as e:
+            print()
+            print("FATAL ERROR loading from %s" % context)
+            print()
+            print('API ERROR MESSAGE: """%s"""' % e)
+            sys.exit(1)
 
     with open("images.json", "w") as f:
         f.write(json.dumps(images, indent=2, sort_keys=True))

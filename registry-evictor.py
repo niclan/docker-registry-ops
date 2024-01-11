@@ -35,105 +35,19 @@ import sys
 import json
 import datetime
 import requests
+import argparse
+from Registry import Registry
+from Spinner import Spinner
 from dateutil import parser
 
 # The registry to work on
 REGISTRY="docker.vgnett.no"
 
-# Spinner to show progress
-spinner = "|/-\\"
-spinner_idx = 0
-
-# But only if we have a tty
-is_tty = sys.stdout.isatty()
-
-def spinner_next():
-    """Print the next spinner character and backspace to so that new output on the line
-    will overwrite the spinner character"""
-    global is_tty
-    global spinner_idx
-    global spinner
-
-    # No progress unless we have a tty
-    if not is_tty:
-        return
-
-    spinner_idx += 1
-    if spinner_idx >= len(spinner):
-        spinner_idx = 0
-
-    print("%s\b" % spinner[spinner_idx], end="", flush=True)
-
-
-# Some REST helpers
-# We should have one that understands pagination, but whatever
-
-def json_get(url):
-    """Get URL and return json or empty list on error"""
-
-    r = requests.get(url)
-
-    if r.status_code == 200:
-        return r.json()
-
-    if r.status_code == 404:
-        return []
-
-    if r.status_code == 400:
-        print("Error 400 on %s (%s), making empty return" % (url, r.text.rstrip()))
-        return []
-
-    print("Error: %s (%s) getting %s" % (r.status_code, r.text.rstrip(), url))
-    sys.exit(1)
-    
-
-def get_repositories():
-    return json_get("https://%s/v2/_catalog?n=10000" % REGISTRY)["repositories"]
-
-
-def get_tags(repo):
-    """Get all tags for a repo"""
-
-    j = json_get("https://%s/v2/%s/tags/list?n=10000" % (REGISTRY, repo))
-    if "tags" not in j:
-        return []
-
-    return j["tags"]
-
-
-def get_manifest(repo, tag):
-    """Get the manifest for a tag.  This requires two queries to the
-    registry.  The first one gets the digest, the second one gets the
-    manifest itself.  The digest is needed to delete the manifest."""
-
-    r = requests.get("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, tag),
-                     headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json"})
-
-    if r.status_code == 200:
-        dcd = r.headers['Docker-Content-Digest']
-        mani = json_get("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, tag))
-        if r.status_code == 200:
-            return dcd, mani
-        # The error will already have been reported in json_get so don't bother
-        # here
-
-    return "", {}
-
-
-## Delete functions
-
-def delete_manifest(repo_tag):
-    """Delete the manifest for a tag.  This requires lookup of the
-    digest corresponding to the tag so that it can be passed to the
-    API.
-    """
-
-    (repo, tag) = repo_tag.split(":")
-    dig = repos[repo][tag]['digest']
-    print("-- Deleting manifest for %s:%s" % (repo_tag, dig))
-    r = requests.delete("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, dig))
-    if r.status_code != 200 and r.status_code != 202:
-        print("--- Result: %s: %s" % (r.status_code, r.text.rstrip()))
+spinner = Spinner()
+reg = None
+used_repo = {}
+used_repo_tag = {}
+repos = {}
 
 ## Catalogue all the repos and tags
     
@@ -146,25 +60,28 @@ def repo_lookup(repo_name):
 
     print("REPO %s" % repo_name)
 
+
     if repo_name.startswith("/"):
         sys.exit("Weirdness in repo_lookup")
 
     if repo_name not in repos:
         repos[repo_name] = {}
 
-    tags = get_tags(repo_name)
+    tags = reg.get_tags(repo_name)
     if tags is None or len(tags) == 0:
         repos[repo_name]['_notags'] = True
         return
+
+    problems = 0
     
-    for tag in get_tags(repo_name):
+    for tag in tags:
         tagkey = f'{repo_name}:{tag}'
 
-        spinner_next()
-        (tagdig, manifest) = get_manifest(repo_name, tag)
+        spinner.next()
+        (tagdig, manifest) = reg.get_manifest(repo_name, tag)
         
         if len(manifest) == 0:
-            no_manifest[tagkey] = True
+            problems += 1
             continue
         
         if "history" not in manifest:
@@ -178,6 +95,8 @@ def repo_lookup(repo_name):
         repos[repo_name][tag]["created"] = parser.parse(created['created'])
         repos[repo_name][tag]["digest"] = tagdig
 
+    if problems > 0:
+        print("*E* %d problem manifests with %s" % (problems, repo_name))
 
 # Eviction logic
 
@@ -189,8 +108,6 @@ def delete_most_manifests(repo_name):
        - The ones in use
        - The 2 newsest before the ones in use
     """
-    global used_repo
-    global used_repo_tag
 
     # List all actuall tags, this excludes the ones starting in underscore
     the_tags = list(filter(lambda x: not x.startswith("_"), \
@@ -229,6 +146,8 @@ def delete_most_manifests(repo_name):
             pass
 
     print("* Tags to keep: %s" % list(tags_to_keep.keys()))
+    any_key = input("Press enter to proceed")
+
     # Delete the tags, except the ones we want to keep
     for tag in tag_bytime:
         repo_tag = f'{repo_name}:{tag}'
@@ -238,7 +157,7 @@ def delete_most_manifests(repo_name):
             continue
         
         print("- Delete %s" % repo_tag)
-        delete_manifest(repo_tag)
+        reg.delete_manifest(repo_name, repos[repo_name][tag]['digest'])
     
 
 def delete_all_manifests(repo_name):
@@ -253,12 +172,12 @@ def delete_all_manifests(repo_name):
         return
 
     print("* Delete all tags: %s" % tags)
-    # enter = input("Press enter to proceed")
+    any_key = input("Press enter to proceed")
 
     for tag in repos[repo_name]:
         repo_tag = f'{repo_name}:{tag}'
         print("- Delete %s" % repo_tag)
-        delete_manifest(repo_tag)
+        reg.delete_manifest(repo_name, repos[repo_name][tag]['digest'])
 
 
 def evict_repo(repo_name):
@@ -282,9 +201,6 @@ def load_image_list():
     kubernetes-inventory.py"""
 
     images = {}
-    global used_repo
-    global used_repo_tag
-    global REGISTRY
 
     # This is the list of image:tags we use in kubernetes
     with open("images.json", "r") as f:
@@ -313,22 +229,37 @@ def load_image_list():
 
     return images
 
+
 def main():
-    global images
+    parser = argparse.ArgumentParser(description='Evict tags/manifests from docker-registry')
+    parser.add_argument('-d', '--delete', action='store_true', \
+                        help='Actually delete the manifests', default=False)
+    parser.add_argument('-r', '--repository', action='store', \
+                        help='Only work on this repository')
+    args = parser.parse_args()
+
+    do_delete = args.delete
 
     images = load_image_list()
 
-    repos = get_repositories()
+    global reg
+    reg = Registry(REGISTRY, do_delete)
+    reg.verbose = True
+
+    if not do_delete:
+        print("***Not deleting anything, just looking around***")
+
+    if args.repository:
+        repo_lookup(args.repository)
+        evict_repo(args.repository)
+        return
+
+    repos = reg.get_repositories()
 
     for repo_name in repos:
         repo_lookup(repo_name)
         evict_repo(repo_name)
 
-
-no_manifest = {}
-used_repo = {}
-used_repo_tag = {}
-repos = {}
 
 if __name__ == "__main__":
     main()
