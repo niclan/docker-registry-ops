@@ -48,6 +48,8 @@ reg = None
 used_repo = {}
 used_repo_tag = {}
 repos = {}
+debug = False
+pause = False
 
 ## Catalogue all the repos and tags
     
@@ -120,7 +122,7 @@ def delete_most_manifests(repo_name):
     # Get the tags sorted by time
     tag_bytime = sorted(the_tags, key=lambda x: repos[repo_name][x]["created"])
 
-    print("* Delete some tags in repo (by time): %s" % tag_bytime)
+    print("* Delete some tags in repo (newer last): %s" % tag_bytime)
 
     # Keep the 3 newest tags:
     tags_to_keep = { tag_bytime[-1]: True }
@@ -137,8 +139,9 @@ def delete_most_manifests(repo_name):
         if repo_tag not in used_repo_tag:
             continue
 
+        if debug: print("  ! Tag %s is in use" % tag)
         used_idx = tag_bytime.index(tag)
-        tags_to_keep[used_idx] = True
+        tags_to_keep[tag] = True
         try:
             tags_to_keep[tag_bytime[used_idx-1]] = True
             tags_to_keep[tag_bytime[used_idx-2]] = True
@@ -146,16 +149,16 @@ def delete_most_manifests(repo_name):
             pass
 
     print("* Tags to keep: %s" % list(tags_to_keep.keys()))
-    any_key = input("Press enter to proceed")
+    if pause: any_key = input("Press enter to proceed")
 
     # Delete the tags, except the ones we want to keep
     for tag in tag_bytime:
         repo_tag = f'{repo_name}:{tag}'
-        print("? %s: %s" % (tag, repos[repo_name][tag]))
         if tag in tags_to_keep:
             print("+ Keep %s" % repo_tag)
             continue
         
+        print("? %s: %s" % (tag, repos[repo_name][tag]))
         print("- Delete %s" % repo_tag)
         reg.delete_manifest(repo_name, repos[repo_name][tag]['digest'])
     
@@ -172,7 +175,7 @@ def delete_all_manifests(repo_name):
         return
 
     print("* Delete all tags: %s" % tags)
-    any_key = input("Press enter to proceed")
+    if pause: any_key = input("Press enter to proceed")
 
     for tag in repos[repo_name]:
         repo_tag = f'{repo_name}:{tag}'
@@ -215,17 +218,19 @@ def load_image_list():
         if not i.startswith(regPrefix):
             continue
         
-        j = i.replace(regPrefix,"",1)
+        repo_tag = i.replace(regPrefix,"",1)
 
         # A bit of paranoid sanity checking
-        if j == i:
+        if repo_tag == i:
             sys.exit("That's weird!")
-        if j.startswith("/"):
+        i = None # Just to be sure we don't use it by mistake
+
+        if repo_tag.startswith("/"):
             sys.exit("That's weird II!")
 
-        (repo, tag) = j.split(":")
+        (repo, tag) = repo_tag.split(":")
         used_repo[repo] = True
-        used_repo_tag[i] = True
+        used_repo_tag[repo_tag] = True
 
     return images
 
@@ -236,8 +241,15 @@ def main():
                         help='Actually delete the manifests', default=False)
     parser.add_argument('-r', '--repository', action='store', \
                         help='Only work on this repository')
+    parser.add_argument('-D', '--debug', action='store_true', \
+                        help='Debug', default=False)
+    parser.add_argument('-p', '--pause', action='store_true', \
+                        help='Pause before (possible) delete in each registry', default=False)
     args = parser.parse_args()
 
+    global debug
+    global pause
+    debug = args.debug
     do_delete = args.delete
 
     images = load_image_list()
@@ -245,9 +257,12 @@ def main():
     global reg
     reg = Registry(REGISTRY, do_delete)
     reg.verbose = True
+    reg.debug = debug
 
     if not do_delete:
         print("***Not deleting anything, just looking around***")
+    else:
+        print("***WILL DELETE MANIFESTS!!!!***")
 
     if args.repository:
         repo_lookup(args.repository)
