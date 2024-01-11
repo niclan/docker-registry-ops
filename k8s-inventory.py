@@ -42,7 +42,7 @@ def load_from_kubernetes(context):
     # ImagePullBackOff is not a kubernetes phase, but for the registry-checker it's
     # interestng
     no_phase = { 'Running': False, 'Pending': False, 'Succeeded': False, \
-                 'Failed': False, 'Unknown': False, 'ImagePullBackOff': False }
+                 'Failed':  False, 'Unknown': False, 'ImagePullBackOff': False }
     count = 0
     
     for i in k8s.list_pod_for_all_namespaces(watch=False).items:
