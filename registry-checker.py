@@ -8,6 +8,11 @@
 #
 # Prerequisites:
 # - Run ./k8s-inventory.py to build the images.json file first
+#
+# - Usage:
+#   ./registry-checker.py docker.example.com
+#
+#   See -h for more options
 
 import re
 import sys
@@ -21,15 +26,14 @@ from os import mkdir, chdir
 from datetime import datetime
 from Registry import Registry
 
-REGISTRY="docker.vgnett.no"
 DIRNAME = "check-report-%s" % datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
 
-CLEAR_EOL = "\n"
+clear_eol = "\n"
 
 try:
     if sys.stdout.isatty():
         curses.setupterm()
-        CLEAR_EOL = curses.tigetstr('el').decode('utf-8')
+        clear_eol = curses.tigetstr('el').decode('utf-8')
 
 except:
     pass
@@ -51,10 +55,10 @@ def get_manifest_health(repo, tag):
 
     result = { 'digest': {}, 'manifest': {} }
 
-    d = requests.get("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, tag),
+    d = requests.get("https://%s/v2/%s/manifests/%s" % (registry, repo, tag),
                      headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json"})
 
-    m = requests.get("https://%s/v2/%s/manifests/%s" % (REGISTRY, repo, tag))
+    m = requests.get("https://%s/v2/%s/manifests/%s" % (registry, repo, tag))
 
     return d, m
 
@@ -67,7 +71,7 @@ def find_image_by_repo(repo_name):
 
 
 def examine_by_report(image_report):
-    regPrefix = f'{REGISTRY}/'
+    regPrefix = f'{registry}/'
 
     errors = []
 
@@ -130,7 +134,7 @@ def examine_by_registry(image_report, only=None):
 
     errors = []
 
-    reg = Registry(REGISTRY)
+    reg = Registry(registry)
 
     if only is not None:
         repos = only
@@ -142,7 +146,7 @@ def examine_by_registry(image_report, only=None):
         return []
 
     for repo in repos:
-        print("  REPO: %s%s\r" % (repo, CLEAR_EOL), end="")
+        print("  REPO: %s%s\r" % (repo, clear_eol), end="")
 
         num_tags = 0
         num_errors = 0
@@ -197,17 +201,20 @@ def examine_by_registry(image_report, only=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Check health of registry. By default only tags references in images.json')
+    parser = argparse.ArgumentParser(description='Check health of registry. By default only tags referenced in images.json')
     parser.add_argument('-R', '--by-registry', action='store_true', \
                         help='Loop over registries instead of images.json',
                         default=False)
     parser.add_argument('-r', '--repository', action="append",
-                        help='Only work on this repository instead of all')
+                        help='Work on this repository instead  of all (can be repeated)')
+    parser.add_argument('server', help='Registry server to check')
     args = parser.parse_args()
-    errors = []
 
     global spinner
     spinner = Spinner()
+
+    global registry
+    registry = args.server
 
     global image_report
 
@@ -226,23 +233,24 @@ def main():
     else:
         errors = examine_by_report(image_report)
 
-    print("")
+    print()
     
     if len(errors) == 0:
         print("Nothing wrong here!")
 
-    with open("registry-check.json", "w") as f:
-        f.write(json.dumps(errors, indent=2, sort_keys=True))
-    print("Wrote report to %s/%s" % (DIRNAME, "registry-check.json"))
+    else:
+        print("Found %d errors, writing reports" % len(errors))
 
-    with open("registry-check.csv", "w") as f:
-        w = csv.DictWriter(f, errors[0].keys())
-        w.writeheader()
-        for e in errors:
-            w.writerow(e)
-    print("Wrote report to %s/%s" % (DIRNAME, "registry-check.csv"))
+        with open("registry-check.json", "w") as f:
+            f.write(json.dumps(errors, indent=2, sort_keys=True))
+        print("Wrote report to %s/%s" % (DIRNAME, "registry-check.json"))
 
-    # print("Image %s is used or wanted in %s" % (repo_tag, namespaces))
+        with open("registry-check.csv", "w") as f:
+            w = csv.DictWriter(f, errors[0].keys())
+            w.writeheader()
+            for e in errors:
+                w.writerow(e)
+        print("Wrote report to %s/%s" % (DIRNAME, "registry-check.csv"))
 
 if __name__ == "__main__":
     main()
