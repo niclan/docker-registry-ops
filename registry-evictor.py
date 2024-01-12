@@ -25,7 +25,7 @@
 #
 # Usage:
 #   With log:
-#     PYTHONUNBUFFERED=TRUE ./registryevictor.py 2>&1 | tee eviction-$(date '+%F-%T').log
+#     PYTHONUNBUFFERED=TRUE ./registryevictor.py -d docker.example.com 2>&1 | tee eviction-$(date '+%F-%T').log
 #   Without log:
 #     ./registryevictor.py
 # 
@@ -40,11 +40,7 @@ from Registry import Registry
 from Spinner import Spinner
 from dateutil import parser
 
-# The registry to work on
-REGISTRY="docker.vgnett.no"
-
 spinner = Spinner()
-reg = None
 used_repo = {}
 used_repo_tag = {}
 repos = {}
@@ -53,7 +49,7 @@ pause = False
 
 ## Catalogue all the repos and tags
     
-def repo_lookup(repo_name):
+def repo_lookup(reg, repo_name):
     """Look up the needed information from each repository:
     - List of all tags
     - The manifest info for each tag
@@ -101,7 +97,7 @@ def repo_lookup(repo_name):
 
 # Eviction logic
 
-def delete_most_manifests(repo_name):
+def delete_most_manifests(reg, repo_name):
     """For repositories that are in use in kubernetes delete the tags we don't need.
 
     I.e., delete most tags, except:
@@ -148,6 +144,11 @@ def delete_most_manifests(repo_name):
             pass
 
     print("* Tags to keep: %s" % list(tags_to_keep.keys()))
+
+    if len(tags_to_keep) == len(tag_bytime):
+        print("* Keeping all tags, nothing to do")
+        return
+
     if pause: any_key = input("Press enter to proceed")
 
     # Delete the tags, except the ones we want to keep
@@ -162,7 +163,7 @@ def delete_most_manifests(repo_name):
         reg.delete_manifest(repo_name, repos[repo_name][tag]['digest'])
     
 
-def delete_all_manifests(repo_name):
+def delete_all_manifests(reg, repo_name):
     """Delete all manifests refered to all the tags in a repo.  This
     should only be used on repositories that are not used by k8s.
     """
@@ -182,7 +183,7 @@ def delete_all_manifests(repo_name):
         reg.delete_manifest(repo_name, repos[repo_name][tag]['digest'])
 
 
-def evict_repo(repo_name):
+def evict_repo(reg, repo_name):
     """Fint out how much should be deleted and call the apropriate function.
     For unused repos: all the tags
     For used repos: just some of the tags"""
@@ -192,13 +193,13 @@ def evict_repo(repo_name):
         return
 
     if repo_name in used_repo:
-        delete_most_manifests(repo_name)
+        delete_most_manifests(reg, repo_name)
         return
 
-    delete_all_manifests(repo_name)
+    delete_all_manifests(reg, repo_name)
 
 
-def load_image_list():
+def load_image_list(reg):
     """Load image list from json file previously written by
     kubernetes-inventory.py"""
 
@@ -211,7 +212,7 @@ def load_image_list():
     if len(images) < 10:
         sys.exit("The image list seems unreasonably short!")
 
-    regPrefix = f'{REGISTRY}/'
+    regPrefix = f'{reg.registry}/'
 
     for i in images:
         if not i.startswith(regPrefix):
@@ -238,41 +239,37 @@ def main():
     parser = argparse.ArgumentParser(description='Evict tags/manifests from docker-registry')
     parser.add_argument('-d', '--delete', action='store_true', \
                         help='Actually delete the manifests', default=False)
-    parser.add_argument('-r', '--repository', action='store', \
-                        help='Only work on this repository instead of all')
+    parser.add_argument('-r', '--repository', action='append', \
+                        help='Work on this repository instead of all (can be repeated)')
     parser.add_argument('-D', '--debug', action='store_true', \
                         help='Debug', default=False)
     parser.add_argument('-p', '--pause', action='store_true', \
                         help='Pause before (possible) delete in each registry', default=False)
+    parser.add_argument('server', help="Registry server to check")
     args = parser.parse_args()
 
     global debug
     global pause
     debug = args.debug
-    do_delete = args.delete
-
-    images = load_image_list()
+    pause = args.pause
 
     global reg
-    reg = Registry(REGISTRY, do_delete)
+    reg = Registry(args.server, args.delete)
     reg.verbose = True
     reg.debug = debug
 
-    if not do_delete:
+    images = load_image_list(reg)
+
+    if not args.delete:
         print("***Not deleting anything, just looking around***")
     else:
         print("***WILL DELETE MANIFESTS!!!!***")
 
-    if args.repository:
-        repo_lookup(args.repository)
-        evict_repo(args.repository)
-        return
-
-    repos = reg.get_repositories()
+    repos = args.repository or reg.get_repositories()
 
     for repo_name in repos:
-        repo_lookup(repo_name)
-        evict_repo(repo_name)
+        repo_lookup(reg, repo_name)
+        evict_repo(reg, repo_name)
 
 
 if __name__ == "__main__":
