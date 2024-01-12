@@ -1,5 +1,9 @@
 # Docker registry evictor
 
+Some ops tools for docker-registry.
+
+## `registry-evictor.py`
+
 This script takes a two stage approach.
 
 1. Get a inventory of used images from your runtime environments.
