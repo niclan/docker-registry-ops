@@ -8,7 +8,7 @@
 # Prerequisites:
 # - apt install python3-requests
 # - pip install python-dateutil
-# - run kubernetes-inventory.py FIRST to get a list of all
+# - run k8s-inventory.py FIRST to get a list of all
 #   active images in our k8s clusters into images.json
 # - After running this script let loose the docker-registry
 #   garbage-collector inside the docker container:
