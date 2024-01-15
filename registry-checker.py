@@ -114,13 +114,19 @@ def examine_by_report(image_report):
                                (image_report[path][ns]['Running'] or
                                 image_report[path][ns]['Pending'] or
                                 image_report[path][ns]['ImagePullBackOff']) ]
-            
+
+            phases = [ phase for ns in image_report[path]
+                       for phase in image_report[path][ns]
+                         if not ns.startswith("_") and image_report[path][ns][phase] ]
+
+            phases = list(set(phases))
+            phases.sort()
             namespaces = list(set(namespaces))
             namespaces.sort()
 
             # NOTE! All errors that goes to the same file must have the
             # same fields, for the sake of the CSV writer.
-            errors.append({ 'tag': repo_tag, 'wrongs': wrongs, 'namespaces': namespaces })
+            errors.append({ 'tag': repo_tag, 'wrongs': wrongs, 'namespaces': namespaces, 'phase': phases })
 
             print("  Examined %d/%d images, %d errors" % (i, len(image_report), len(errors)),
                   end="\r", flush=True)
