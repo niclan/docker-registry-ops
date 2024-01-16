@@ -11,7 +11,8 @@ class Router:
         self.routes[path] = handler
 
     def route(self, path, request):
-        (httppath) = path.split("?")
+        # 1 means split only once, making 2 elements
+        (httppath) = path.split("?", 1)
 
         match len(httppath):
             case 1:
@@ -38,6 +39,12 @@ class RegistryHealthHTTPD(BaseHTTPRequestHandler):
         self.send_response_only(code, message)
         self.send_header('Date', self.date_time_string())
 
+    def _HEAD(self, body, response=200):
+        self.send_response(response)
+        self.send_header("Content-type", "text/plain;chatset=utf-8")
+        self.send_header("Content-length", len(body))
+        self.end_headers()
+
     def do_GET(self):
         body = router.route(self.path, self)
 
@@ -49,15 +56,9 @@ class RegistryHealthHTTPD(BaseHTTPRequestHandler):
 
         body = body + "\n\r"
         body = bytes(body, "utf-8")
-        self.do_HEAD(body, response=response_code)
+        self._HEAD(body, response=response_code)
 
         self.wfile.write(body)
-
-    def _HEAD(self, body, response=200):
-        self.send_response(response)
-        self.send_header("Content-type", "text/plain;chatset=utf-8")
-        self.send_header("Content-length", len(body))
-        self.end_headers()
 
     def do_HEAD(self):
         body = router.route(self.path, self)
