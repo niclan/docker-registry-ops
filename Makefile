@@ -14,6 +14,9 @@ default:
 	@echo "  shell      - Start a shell in the container to inspect it"
 	@echo
 
+webserver:
+	export PYTHONLIB=${PWD}/lib
+	./app/webserver.py
 
 container:
 	docker build -t docker-registry-checker .
