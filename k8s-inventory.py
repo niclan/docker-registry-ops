@@ -90,7 +90,7 @@ def main():
         try:
             config.load_incluster_config()
             print("Loaded in-cluster configuration")
-            contexts = [ 'in-cluster' ]
+            contexts = [ { 'name': 'in-cluster' } ]
         except ConfigException as e:
             sys.exit("Cannot load kubernetes configuration: %s" % e)
 
