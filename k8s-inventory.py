@@ -82,7 +82,17 @@ def load_from_kubernetes(context):
 
 
 def main():
-    contexts, active_context = config.list_kube_config_contexts()
+    try:
+        contexts, active_context = config.list_kube_config_contexts()
+        print("Loaded contexts from kube-config file")
+    except ConfigException as e:
+        try:
+            config.load_incluster_config()
+            print("Loaded in-cluster configuration")
+            contexts = [ 'in-cluster' ]
+        except ConfigException as e:
+            sys.exit("Cannot load kubernetes configuration: %s" % e)
+
     if not contexts:
         print("Cannot find any context in kube-config file.")
         return
