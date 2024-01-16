@@ -11,7 +11,18 @@ class Router:
         self.routes[path] = handler
 
     def route(self, path, request):
-        (path, query) = path.split("?")
+        (httppath) = path.split("?")
+
+        match len(httppath):
+            case 1:
+                path = httppath[0]
+                query = ""
+            case 2:
+                path = httppath[0]
+                query = httppath[1]
+            case _:
+                return None
+
         if path in self.routes:
             return self.routes[path](request, path, query)
         else:
@@ -42,11 +53,22 @@ class RegistryHealthHTTPD(BaseHTTPRequestHandler):
 
         self.wfile.write(body)
 
-    def do_HEAD(self, body, response=200):
+    def _HEAD(self, body, response=200):
         self.send_response(response)
         self.send_header("Content-type", "text/plain;chatset=utf-8")
         self.send_header("Content-length", len(body))
         self.end_headers()
+
+    def do_HEAD(self):
+        body = router.route(self.path, self)
+
+        response_code = 200
+
+        if body is None:
+            body = "Not found"
+            response_code = 404
+
+        self._HEAD(body, response=response_code)
 
 
 def health_check(request, path, query):

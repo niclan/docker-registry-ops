@@ -11,7 +11,7 @@ RUN pip install kubernetes requests
 # Install our code
 RUN mkdir -p /app/reports; mkdir -p /lib; mkdir -p /bin
 COPY app /app
-COPY Registry.py Spinner.py /lib/
+COPY lib /lib
 COPY k8s-inventory.py registry-checker.py /bin/
 ENV REPORTDIR=/app/reports
 ENV PYTHONUNBUFFERED=TRUE
