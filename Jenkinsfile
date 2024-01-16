@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-def team    = 'vg'
+def team    = 'VG'
 def project = 'ops'
 def name    = 'docker-registry-monitor'
 def email   = 'nicolai.langfeldt@schibsted.com'
