@@ -1,8 +1,8 @@
 #!/usr/bin/env groovy
 
-def team    = 'VG'
-def project = 'ops'
-def name    = 'docker-registry-monitor'
+def team    = 'ops'
+def project = 'docker-registry'
+def name    = 'monitor'
 def email   = 'nicolai.langfeldt@schibsted.com'
 
 def stagedRelease = createRelease(
