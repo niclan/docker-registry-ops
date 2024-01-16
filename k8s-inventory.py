@@ -29,6 +29,7 @@ import pprint
 from kubernetes import client, config
 from kubernetes.client import configuration
 from kubernetes.client.rest import ApiException
+from kubernetes.config.config_exception import ConfigException
 
 def load_from_kubernetes(context):
     # Change cluster context
