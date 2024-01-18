@@ -1,0 +1,24 @@
+apiVersion: skaffold/v4beta9
+kind: Config
+metadata:
+  name: docker-registry-checker
+build:
+  artifacts:
+    - image: docker-registry-checker
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        infer:
+        - src/*
+        - lib/*
+        - k8s-inventory.sh
+        - k8s-inventory.py
+        - registry-checker.py
+  local: {}
+        
+manifests:
+  rawYaml:
+    - deployment.yaml
+    - manifests/01-ServiceAccount.yaml
+    - manifests/02-ClusterRole.yaml
+    - manifests/03-ClusterRoleBinding.yaml

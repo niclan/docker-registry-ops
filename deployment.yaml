@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: docker-registry-checker
+  name: docker-registry-checker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docker-registry-checker
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: docker-registry-checker
+    spec:
+      serviceAccountName: docker-registry-checker
+      containers:
+      - image: docker-registry-checker
+        name: docker-registry-checker
+        resources: {}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 3
+          periodSeconds: 3
+status: {}
