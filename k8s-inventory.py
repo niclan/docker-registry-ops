@@ -31,14 +31,7 @@ from kubernetes.client import configuration
 from kubernetes.client.rest import ApiException
 from kubernetes.config.config_exception import ConfigException
 
-def load_from_kubernetes(context):
-    # Change cluster context
-
-    print("Loading from %s" % context)
-
-    k8s = client.CoreV1Api(
-        api_client=config.new_client_from_config(context=context))
-
+def load_from_kubernetes(k8s, context=None):
     # Kubernetes pod phases:
     # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
     #
@@ -98,12 +91,23 @@ def main():
         print("Cannot find any context in kube-config file.")
         return
 
+    if contexts[0]['name'] == 'in-cluster':
+        k8s = client.CoreV1Api()
+
+        print("Loading from in-cluster configuration")
+        load_from_kubernetes(k8s, context='in-cluster')
+        sys.exit("Loaded from in-cluster configuration")
+
     contexts = [context['name'] for context in contexts]
 
     print("Finding images in available contexts")
     for context in contexts:
         try:
-            load_from_kubernetes(context)
+            print("Loading from %s" % context)
+
+            k8s = client.CoreV1Api(api_client=config.new_client_from_config(context=context))
+
+            load_from_kubernetes(k8s, context=context)
         except ApiException as e:
             print()
             print("FATAL ERROR loading from %s" % context)
