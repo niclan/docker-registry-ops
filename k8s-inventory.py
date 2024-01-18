@@ -22,6 +22,7 @@
 #   not work.  You have to devise a way to change AWS_PROFILE(?) before
 #   interogating the clusters in AWS accounts.
 
+import os
 import re
 import sys
 import json
@@ -82,7 +83,7 @@ def main():
     except ConfigException as e:
         try:
             config.load_incluster_config()
-            print("Loaded in-cluster configuration")
+            print("Using in-cluster configuration")
             contexts = [ { 'name': 'in-cluster' } ]
         except ConfigException as e:
             sys.exit("Cannot load kubernetes configuration: %s" % e)
@@ -96,26 +97,30 @@ def main():
 
         print("Loading from in-cluster configuration")
         load_from_kubernetes(k8s, context='in-cluster')
-        sys.exit("Loaded from in-cluster configuration")
 
-    contexts = [context['name'] for context in contexts]
+    else:
+        contexts = [context['name'] for context in contexts]
 
-    print("Finding images in available contexts")
-    for context in contexts:
-        try:
-            print("Loading from %s" % context)
+        print("Finding images in available contexts")
+        for context in contexts:
+            try:
+                print("Loading from %s" % context)
 
-            k8s = client.CoreV1Api(api_client=config.new_client_from_config(context=context))
+                k8s = client.CoreV1Api(api_client=config.new_client_from_config(context=context))
 
-            load_from_kubernetes(k8s, context=context)
-        except ApiException as e:
-            print()
-            print("FATAL ERROR loading from %s" % context)
-            print()
-            print('API ERROR MESSAGE: """%s"""' % e)
-            sys.exit(1)
+                load_from_kubernetes(k8s, context=context)
+            except ApiException as e:
+                print()
+                print("FATAL ERROR loading from %s" % context)
+                print()
+                print('API ERROR MESSAGE: """%s"""' % e)
+                sys.exit(1)
 
-    with open("images.json", "w") as f:
+    savedir = os.environ.get('REPORTDIR', '.')
+
+    print("Saving images to %s/images.json" % savedir)
+
+    with open(f'{savedir}/images.json', "w") as f:
         f.write(json.dumps(images, indent=2, sort_keys=True))
 
 images = {}

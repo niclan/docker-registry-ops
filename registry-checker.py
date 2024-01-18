@@ -14,6 +14,7 @@
 #
 #   See -h for more options
 
+import os
 import re
 import sys
 import csv
@@ -26,7 +27,7 @@ from os import mkdir, chdir
 from datetime import datetime
 from Registry import Registry
 
-DIRNAME = "check-report-%s" % datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+dirname = "check-report-%s" % datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
 
 clear_eol = "\n"
 
@@ -224,11 +225,10 @@ def main():
 
     global image_report
 
-    with open("images.json", "r") as f:
+    savedir = os.environ.get('REPORTDIR', '.')
+    print("Loading images list from %s/images.json" % savedir)
+    with open(f'{savedir}/images.json', "r") as f:
         image_report = json.load(f)
-
-    mkdir(DIRNAME)
-    chdir(DIRNAME)
 
     spinner.next()
 
@@ -245,18 +245,26 @@ def main():
         print("Nothing wrong here!")
 
     else:
+
+        if savedir != '.':
+            print("Saving reports to %s" % savedir)
+            dirname = savedir
+        else:
+            mkdir(dirname)
+            
+        chdir(dirname)
         print("Found %d errors, writing reports" % len(errors))
 
         with open("registry-check.json", "w") as f:
             f.write(json.dumps(errors, indent=2, sort_keys=True))
-        print("Wrote report to %s/%s" % (DIRNAME, "registry-check.json"))
+        print("Wrote report to %s/%s" % (dirname, "registry-check.json"))
 
         with open("registry-check.csv", "w") as f:
             w = csv.DictWriter(f, errors[0].keys())
             w.writeheader()
             for e in errors:
                 w.writerow(e)
-        print("Wrote report to %s/%s" % (DIRNAME, "registry-check.csv"))
+        print("Wrote report to %s/%s" % (dirname, "registry-check.csv"))
 
 if __name__ == "__main__":
     main()

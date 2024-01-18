@@ -10,12 +10,13 @@ RUN pip install --upgrade pip
 RUN pip install kubernetes requests
 # Install our code
 RUN mkdir -p /app/reports; mkdir -p /lib; mkdir -p /bin
+RUN chown -R www-data:www-data /app
+# USER www-data
 COPY app /app
-COPY lib /lib
+COPY Spinner.py Registry.py /lib/
 COPY k8s-inventory.sh k8s-inventory.py registry-checker.py /bin/
 ENV REPORTDIR=/app/reports
 ENV PYTHONUNBUFFERED=TRUE
 ENV PYTHONPATH=/lib
 WORKDIR /app
-USER www-data
 CMD ["python3", "./webserver.py"]
