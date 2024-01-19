@@ -47,32 +47,31 @@ def load_from_kubernetes(k8s, context=None):
         if i.status.container_statuses is None: continue
 
         for c in i.status.container_statuses:
-            if us.match(c.image):
-                count += 1
-                if c.image not in images:
-                    images[c.image] = { '_phase': no_phase.copy() }
+            count += 1
+            if c.image not in images:
+                images[c.image] = { '_phase': no_phase.copy() }
 
-                ipbo = c.state.waiting is not None and \
-                    c.state.waiting.reason == 'ImagePullBackOff'
+            ipbo = c.state.waiting is not None and \
+                c.state.waiting.reason == 'ImagePullBackOff'
+
+            images[c.image]['_phase']['ImagePullBackOff'] = ipbo
+
+            # We don't need to know the state of all the
+            # individual pods, but we do need to know if the image
+            # is used in a running pod. This is the
+            # namespace-point of suffcient specificity to save if
+            # the registry tag is running somewhere and where that
+            # is.
+            pod_name = f'k8s;{context};{i.metadata.namespace};{i.metadata.name}'
+
+            if pod_name not in images[c.image]:
+                images[c.image][pod_name] = no_phase.copy()
+
+            images[c.image][pod_name][i.status.phase] = True
+            images[c.image][pod_name]['ImagePullBackOff'] = ipbo
+            images[c.image]['_phase'][i.status.phase] = True
                 
-                images[c.image]['_phase']['ImagePullBackOff'] = ipbo
-
-                # We don't need to know the state of all the
-                # individual pods, but we do need to know if the image
-                # is used in a running pod. This is the
-                # namespace-point of suffcient specificity to save if
-                # the registry tag is running somewhere and where that
-                # is.
-                pod_name = f'k8s;{context};{i.metadata.namespace};{i.metadata.name}'
-
-                if pod_name not in images[c.image]:
-                    images[c.image][pod_name] = no_phase.copy()
-
-                images[c.image][pod_name][i.status.phase] = True
-                images[c.image][pod_name]['ImagePullBackOff'] = ipbo
-                images[c.image]['_phase'][i.status.phase] = True
-                
-    print("* Found %s matching pods" % count)
+    print("* Found %s pods" % count)
     print("* Images until now: %d" % len(images))
 
 
@@ -83,7 +82,6 @@ def main():
     except ConfigException as e:
         try:
             config.load_incluster_config()
-            print("Using in-cluster configuration")
             contexts = [ { 'name': 'in-cluster' } ]
         except ConfigException as e:
             sys.exit("Cannot load kubernetes configuration: %s" % e)
@@ -95,7 +93,7 @@ def main():
     if contexts[0]['name'] == 'in-cluster':
         k8s = client.CoreV1Api()
 
-        print("Loading from in-cluster configuration")
+        print("Running in cluster, only checking it")
         load_from_kubernetes(k8s, context='in-cluster')
 
     else:
@@ -124,7 +122,6 @@ def main():
         f.write(json.dumps(images, indent=2, sort_keys=True))
 
 images = {}
-us = re.compile(r"^docker.vgnett.no/")
         
 if __name__ == '__main__':
     main()
