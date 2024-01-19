@@ -6,4 +6,3 @@ subjects:
 - kind: ServiceAccount
   name: docker-registry-checker
   namespace: ops-production
-
