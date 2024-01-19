@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: docker-registry-checker
   creationTimestamp: null
   labels:
     app: docker-registry-checker
-  name: docker-registry-checker
 spec:
   replicas: 1
   selector:
@@ -27,5 +27,5 @@ spec:
             path: /health
             port: 8000
           initialDelaySeconds: 3
-          periodSeconds: 3
+          periodSeconds: 60
 status: {}

@@ -5,8 +5,5 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: docker-registry-checker
-  namespace: ops-stage
-roleRef:
-  kind: ClusterRole
-  name: docker-registry-checker
-  apiGroup: rbac.authorization.k8s.io
+  namespace: ops-production
+

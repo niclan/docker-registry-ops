@@ -11,14 +11,45 @@ build:
         infer:
         - src/*
         - lib/*
-        - k8s-inventory.sh
         - k8s-inventory.py
         - registry-checker.py
   local: {}
-        
+
 manifests:
-  rawYaml:
-    - deployment.yaml
-    - manifests/01-ServiceAccount.yaml
-    - manifests/02-ClusterRole.yaml
-    - manifests/03-ClusterRoleBinding.yaml
+  kustomize:
+    paths:
+      - kustomize/base
+  
+#  rawYaml:
+#    - kustomize/base/01-ServiceAccount.yaml
+#    - kustomize/base/02-ClusterRole.yaml
+#    - kustomize/base/03-ClusterRoleBinding.yaml
+#    - kustomize/base/04-Deployment.yaml
+
+deploy:
+  kubectl:
+    defaultNamespace: ops-staging
+    flags:
+      global:
+        - "-n"
+        - "ops-staging"
+
+profiles:
+- name: dev
+  activation:
+    - command: dev
+      
+- name: prod
+  patches:
+    - op: replace
+      path: /manifests/kustomize/paths/0
+      value: kustomize/prod
+    - op: replace
+      path: /deploy/kubectl/defaultNamespace
+      value: ops-production
+    - op: replace
+      path: /deploy/kubectl/flags/global
+      value:
+        - "-n"
+        - "ops-production"
+
