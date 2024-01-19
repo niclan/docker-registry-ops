@@ -25,9 +25,9 @@
 #
 # Usage:
 #   With log:
-#     PYTHONUNBUFFERED=TRUE ./registryevictor.py -d docker.example.com 2>&1 | tee eviction-$(date '+%F-%T').log
+#     PYTHONUNBUFFERED=TRUE ./registry-evictor.py -d docker.example.com 2>&1 | tee eviction-$(date '+%F-%T').log
 #   Without log:
-#     ./registryevictor.py
+#     ./registry-evictor.py -d
 # 
 
 import re
