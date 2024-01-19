@@ -14,9 +14,10 @@ RUN chown -R www-data:www-data /app
 # USER www-data
 COPY app /app
 COPY Spinner.py Registry.py /lib/
-COPY k8s-inventory.sh k8s-inventory.py registry-checker.py /bin/
+COPY container-start.sh k8s-inventory.py registry-checker.py /bin/
+COPY cronfile /etc/crontab
 ENV REPORTDIR=/app/reports
 ENV PYTHONUNBUFFERED=TRUE
 ENV PYTHONPATH=/lib
 WORKDIR /app
-CMD ["python3", "./webserver.py"]
+CMD ["/bin/container-start.sh"]
