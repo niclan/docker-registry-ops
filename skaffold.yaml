@@ -1,3 +1,4 @@
+# Defaults here
 apiVersion: skaffold/v4beta9
 kind: Config
 metadata:
@@ -18,14 +19,17 @@ build:
 manifests:
   kustomize:
     paths:
-      - kustomize/base
+      - kustomize/stage
   
 deploy:
   kubectl:
     defaultNamespace: ops-staging
 
+
+# Changes according to profile here
+
 profiles:
-- name: dev
+- name: stage
   activation:
     - command: dev
       

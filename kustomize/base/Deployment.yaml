@@ -3,8 +3,6 @@ kind: Deployment
 metadata:
   name: docker-registry-checker
   creationTimestamp: null
-  labels:
-    app: docker-registry-checker
 spec:
   replicas: 1
   selector:
@@ -17,7 +15,7 @@ spec:
       labels:
         app: docker-registry-checker
     spec:
-      serviceAccountName: docker-registry-checker
+      serviceAccountName: sa-docker-registry-checker-stage
       containers:
       - image: docker-registry-checker
         name: docker-registry-checker

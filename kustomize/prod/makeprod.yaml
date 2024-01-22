@@ -1,8 +1,0 @@
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: docker-registry-checker
-subjects:
-- kind: ServiceAccount
-  name: docker-registry-checker
-  namespace: ops-production

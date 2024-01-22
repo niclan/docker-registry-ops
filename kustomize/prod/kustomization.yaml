@@ -3,9 +3,16 @@ kind: Kustomization
 
 namespace: ops-production
 nameSuffix: "-prod"
+commonLabels:
+  app: docker-registry-checker-prod
 
 resources:
 - ../base
 
-# patches:
-# - path: makeprod.yaml
+patches:
+- path: fix-rb.yaml
+- path: fix-deployment.yaml
+  target:
+    kind: Deployment
+
+
