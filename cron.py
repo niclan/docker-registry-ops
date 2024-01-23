@@ -7,8 +7,6 @@
 #
 # (C) 2024, Nicolai Langfeldt, Schibsted Products and Technology
 #
-# Prerequisites:
-# - pip install schedule
 
 import os
 import sys

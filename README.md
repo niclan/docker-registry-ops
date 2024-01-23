@@ -11,7 +11,7 @@ needs.
 
 ## Installing
 
-Python needs a couple of packages: see requirements.txt.  You can see
+Python needs a some packages: see requirements.txt.  You can see
 if your OS package manager provides them and install them using that
 or you can try pip: `pip install -r requirements.txt`
 

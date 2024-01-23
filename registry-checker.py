@@ -6,11 +6,9 @@
 # tags and empty repositories.  Optionally refer to running images
 # from images.json to see if the tag or repository is in use.
 #
-# Prerequisites:
+# Usage:
 # - Run ./k8s-inventory.py to build the images.json file first
-#
-# - Usage:
-#   ./registry-checker.py docker.example.com
+# - ./registry-checker.py docker.example.com
 #
 #   See -h for more options
 

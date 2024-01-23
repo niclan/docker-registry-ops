@@ -1,2 +1,4 @@
-requests
+argparse
+python-dateutil
 kubernetes
+requests
