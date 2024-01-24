@@ -134,5 +134,10 @@ profile)
 
 To deploy to prod: `skaffold run -p prod`
 
+## Secrets
 
+We use Hashicorp vault to store secrets.  To support getting secrets
+from vault into the deployment the directory "vault" is provided with
+a Makefile using `consul-template` to write a secrets.txt file from
+secrets.ctmpl.  A secrets-example.ctmpl file is provided.
 
