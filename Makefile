@@ -1,4 +1,4 @@
-.PHONEY: container run standalone shell default
+.PHONEY: container run standalone shell default secret dev stage prod
 
 default:
 	@echo
@@ -28,3 +28,16 @@ run: container
 # env, isn't) first
 shell:	container
 	docker container run --rm -it docker-registry-checker:latest /bin/bash
+
+secret:
+	(cd vault && make secrets)
+
+# In my example dev runs in the stage namespace
+dev:	secret
+	skaffold dev
+
+stage:	secret
+	skaffold run -p stage
+
+prod:	secret
+	skaffold run -p prod
