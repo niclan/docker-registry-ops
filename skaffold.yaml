@@ -4,6 +4,8 @@ kind: Config
 metadata:
   name: docker-registry-checker
 build:
+  tagPolicy:
+    gitCommit: {}
   artifacts:
     - image: docker-registry-checker
       docker:
