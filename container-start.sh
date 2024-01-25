@@ -1,5 +1,7 @@
 #!/bin/bash
 
+. /etc/secrets/secrets.txt
+
 cron.py -i 900 -d k8s-inventory.py
 
 # This is the container anchor script. It should not terminate
