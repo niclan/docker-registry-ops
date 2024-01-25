@@ -4,6 +4,7 @@
 FROM python:3.11-slim-bookworm
 # Pull kubectl binary from the kubectl image
 # COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+RUN apt update && apt -y dist-upgrade
 # Python runtime environment
 COPY requirements.txt /
 RUN pip install --upgrade pip; pip install -r /requirements.txt; rm /requirements.txt
