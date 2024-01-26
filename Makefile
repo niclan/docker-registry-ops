@@ -1,5 +1,7 @@
 .PHONEY: container run standalone shell default secret dev stage prod
 
+PORCELAIN = $(shell git status --porcelain)
+
 default:
 	@echo
 	@echo Use one of these targets:
@@ -39,5 +41,7 @@ dev:	secret
 stage:	secret
 	skaffold run -p stage
 
-prod:	secret
+prod:
+	@if [ -n "$(PORCELAIN)" ]; then echo "Commit everything before a production push, aborting"; exit 1; fi
+	secret
 	skaffold run -p prod
