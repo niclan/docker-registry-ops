@@ -21,11 +21,17 @@ spec:
             # This name is defined in base/kustomization.yaml
             secretName: test-secrets
 
-      serviceAccountName: sa-docker-registry-checker-stage
+      serviceAccountName: sa-docker-registry-checker-dev
       containers:
       - name: docker-registry-checker
         image: docker-registry-checker
         resources: {}
+        env:
+          - name: FOO
+            value: BAR
+        envFrom:
+          - secretRef:
+              name: docker-registry-checker
         livenessProbe:
           httpGet:
             path: /health

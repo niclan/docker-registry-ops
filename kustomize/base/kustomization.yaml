@@ -4,8 +4,9 @@ kind: Kustomization
 secretGenerator:
   - name: test-secrets
     files:
-      - secrets.txt
+      - secrets.env
 
 resources:
   - ServiceAccount.yaml
   - Deployment.yaml
+  - secret.yaml

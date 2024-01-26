@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: docker-registry-checker-stage
+  name: crb-docker-registry-checker
+
+subjects:
+- kind: "ServiceAccount"
+  name: "sa-docker-registry-checker-stage"
+  namespace: ops-stage
+roleRef:
+  name: "cr-docker-registry-checker-stage"
+

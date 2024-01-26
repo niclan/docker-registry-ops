@@ -31,9 +31,22 @@ deploy:
 # Changes according to profile here
 
 profiles:
-- name: stage
+- name: dev
   activation:
     - command: dev
+
+- name: stage
+  patches:
+    - op: replace
+      path: /manifests/kustomize/paths/0
+      value: kustomize/stage
+    - op: replace
+      path: /deploy/kubectl/defaultNamespace
+      value: ops-staging
+    - op: replace
+      path: /build/tagPolicy
+      value:
+        gitCommit: {}
       
 - name: prod
   patches:
