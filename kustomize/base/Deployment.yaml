@@ -15,12 +15,6 @@ spec:
       labels:
         app: docker-registry-checker
     spec:
-      volumes:
-        - name: secret-volume
-          secret:
-            # This name is defined in base/kustomization.yaml
-            secretName: test-secrets
-
       serviceAccountName: sa-docker-registry-checker-dev
       containers:
       - name: docker-registry-checker
@@ -31,15 +25,11 @@ spec:
             value: BAR
         envFrom:
           - secretRef:
-              name: docker-registry-checker
+              name: docker-registry-checker-dev
         livenessProbe:
           httpGet:
             path: /health
             port: 8000
           initialDelaySeconds: 3
           periodSeconds: 60
-        volumeMounts:
-          - name: secret-volume
-            readOnly: true
-            mountPath: /etc/secrets
 status: {}
