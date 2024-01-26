@@ -33,5 +33,5 @@ secrets:
 	@# Avoid echoing the token so it doesn't get logged, but still
 	@# show that we're making the secrets.txt file
 	@echo Generating secrets.txt
-	@consul-template -vault-token="$(TOKEN)" -template="secrets.ctmpl:../kustomize/base/secrets.txt" -once
-	@ls -l ../kustomize/base/secrets.txt
+	@consul-template -vault-token="$(TOKEN)" -template="secret-yaml.ctmpl:../kustomize/base/secret.yaml" -once
+	@ls -l ../kustomize/base/secret.yaml
