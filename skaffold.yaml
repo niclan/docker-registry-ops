@@ -21,11 +21,11 @@ build:
 manifests:
   kustomize:
     paths:
-      - kustomize/stage
+      - kustomize/dev
   
 deploy:
   kubectl:
-    defaultNamespace: ops-staging
+    defaultNamespace: ops-dev
 
 
 # Changes according to profile here
@@ -36,6 +36,8 @@ profiles:
     - command: dev
 
 - name: stage
+  activation:
+    - command: run
   patches:
     - op: replace
       path: /manifests/kustomize/paths/0
