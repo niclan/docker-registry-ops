@@ -9,7 +9,7 @@ usage:
 	@echo "Usage:"
 	@echo "  make oidclogin"
 	@echo "  make tokenlogin"
-	@echo "  make secrets - make secrets.txt"
+	@echo "  make secrets - make secret file for kubernetes/kustomize"
 	@echo ""
 	@echo "VAULT_ADDR must be set.  And if you set VAULT_TOKEN, you don't need to log in."
 	@echo ""
