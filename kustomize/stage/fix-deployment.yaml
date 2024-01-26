@@ -2,5 +2,5 @@
   path: /spec/template/spec/serviceAccountName
   value: sa-docker-registry-checker-stage
 - op: replace
-  path: /spec/template/spec/containers/envFrom/secretRef/name
+  path: /spec/template/spec/containers/0/envFrom/secretRef/name
   value: docker-registry-checker-stage
