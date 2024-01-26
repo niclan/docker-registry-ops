@@ -5,7 +5,7 @@ metadata:
   name: docker-registry-checker
 build:
   tagPolicy:
-    gitCommit: {}
+    inputDigest: {}
   artifacts:
     - image: docker-registry-checker
       docker:
@@ -43,3 +43,7 @@ profiles:
     - op: replace
       path: /deploy/kubectl/defaultNamespace
       value: ops-production
+    - op: replace
+      path: /build/tagPolicy
+      value:
+        gitCommit: {}
