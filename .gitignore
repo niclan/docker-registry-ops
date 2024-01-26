@@ -1,8 +1,12 @@
 # Emacs stuff
 *~
 .emacs*
+
+# Build and run artifacts for this project
 images.json
 check-report-*
+secret.yaml
+secrets.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
