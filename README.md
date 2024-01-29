@@ -148,7 +148,7 @@ without their images so that ops can keep an eye on this.
 The deployment tool is [`skaffold`](https://skaffold.dev/) which is
 both very nice for the development and also for production deployment.
 
-The basic setup is defined in `[skaffold.yaml](skaffold.yaml)`.
+The basic setup is defined in [`skaffold.yaml`](skaffold.yaml).
 
 This is a standard deployment with a service account that has a
 cluster role to get all pods across all namespaces.
