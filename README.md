@@ -158,10 +158,10 @@ with kustomize which is (now) a part kubectl.  If you have a look at
 skaffold.yaml and the profiles part you'll see that the project is set
 up to deploy to a namespace called "ops-dev" by default.
 
-This is defined in `[kustomize/dev](kustomize/dev)`.  When running
+This is defined in [`kustomize/dev`](kustomize/dev).  When running
 e.g. `skaffold run -p prod` the profile in `skaffold.yaml` overrides the
 earlier settings and then uses the setup in
-`[kustomize/prod](kustomize/prod)` and the namspace "ops-production".
+[`kustomize/prod`](kustomize/prod) and the namspace "ops-production".
 
 To suit yourself you can edit skaffold.yaml to define your own
 profiles and add them in the kustomize directory.
@@ -189,7 +189,7 @@ kustomize/base directory.
 The manifest file is is secret.yaml from secret-yaml.ctmpl.  This can
 be used for secretRef to put the secrets into the pod environment.
 This is defined in
-`[kustomize/base/Deployment.yaml](kustomize/base/Deployment.yaml)`
+[`kustomize/base/Deployment.yaml`](kustomize/base/Deployment.yaml)
 
 The files that kustomize uses as input must reside within the
 kustomize file hierarchy, therefore the Makefile writes to
