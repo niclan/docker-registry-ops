@@ -1,0 +1,6 @@
+- op: replace
+  path: /spec/rules/0/host
+  value: docker-registry-checker-staging
+- op: replace
+  path: /spec/rules/0/http/paths/0/backend/service/name
+  value: docker-registry-checker

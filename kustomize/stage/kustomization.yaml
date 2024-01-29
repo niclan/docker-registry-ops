@@ -14,5 +14,11 @@ patches:
 - path: fix-deployment.yaml
   target:
     kind: Deployment
+- path: fix-service.yaml
+  target:
+    kind: Service
+- path: fix-ingress.yaml
+  target:
+    kind: Ingress
 
 
