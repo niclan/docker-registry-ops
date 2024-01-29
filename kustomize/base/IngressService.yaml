@@ -1,0 +1,37 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: docker-registry-checker
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  rules:
+  - host: docker-registry-checker-dev.k8s.vgnett.no
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: docker-registry-checker-dev
+            port:
+              number: 8000
+  tls:
+  - hosts:
+    - docker-registry-checker-dev.k8s.vgnett.no
+    secretName: docker-registry-checker-dev-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-registry-checker
+spec:
+  selector:
+    app.kubernetes.io/name: docker-registry-checker-dev
+  ports:
+  - name: http
+    port: 8000
+    protocol: TCP
+    targetPort: 8000
+  type: LoadBalancer

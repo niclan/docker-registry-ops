@@ -9,4 +9,5 @@ kind: Kustomization
 resources:
   - ServiceAccount.yaml
   - Deployment.yaml
+  - IngressService.yaml
   - secret.yaml

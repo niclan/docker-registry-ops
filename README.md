@@ -201,4 +201,3 @@ have to make new ones to get it to collect keys from different vault
 paths for each of the environments/namespaces you deploy to and
 generate manifests into the correct directories and then update the
 kustomization.yaml files to pick them up.
-
