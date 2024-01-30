@@ -4,18 +4,20 @@ kind: Config
 metadata:
   name: docker-registry-checker
 build:
-  tagPolicy:
-    inputDigest: {}
+# Setting this forces docker image rebuild on every change which is
+# often a bit much.  But sometimes it's too hard to make skaffold rebuild
+# the image.
+#  tagPolicy:
+#    inputDigest: {}
   artifacts:
     - image: docker-registry-checker
       docker:
         dockerfile: Dockerfile
       sync:
         infer:
-          - src/*
-          - lib/*
-          - k8s-inventory.py
-          - registry-checker.py
+          - app/*
+          - "*.py"
+          - "*.sh"
   local: {}
 
 manifests:
@@ -49,6 +51,7 @@ profiles:
     - op: replace
       path: /build/tagPolicy
       value:
+        # The Makefile forces git commit before deploy
         gitCommit: {}
       
 - name: prod
@@ -62,4 +65,5 @@ profiles:
     - op: replace
       path: /build/tagPolicy
       value:
+        # The Makefile forces git commit before deploy
         gitCommit: {}
