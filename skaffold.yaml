@@ -34,14 +34,15 @@ profiles:
 - name: dev
   activation:
     - command: dev
-    - command: run
-    - command: delete
 
 - name: stage
+  activation:
+    - command: run
+    - command: delete
   patches:
     - op: replace
       path: /manifests/kustomize/paths/0
-      value: kustomize/stage
+      value: kustomize/staging
     - op: replace
       path: /deploy/kubectl/defaultNamespace
       value: ops-staging
