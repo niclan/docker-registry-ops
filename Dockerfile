@@ -16,7 +16,7 @@ RUN chown -R www-data:www-data /app
 # USER www-data
 COPY app /app
 COPY Spinner.py Registry.py /lib/
-COPY container-start.sh k8s-inventory.py registry-checker.py cron.py /bin/
+COPY container-start.sh registry-checker.sh k8s-inventory.py registry-checker.py cron.py /bin/
 ENV REPORTDIR=/app/reports
 ENV PYTHONUNBUFFERED=TRUE
 ENV PYTHONPATH=/lib
