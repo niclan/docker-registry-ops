@@ -93,7 +93,7 @@ def examine_by_report(image_report):
 
         i += 1
 
-        (repo, tag) = repo_tag.split(":")
+        (repo, tag) = repo_tag.split(":",1)
 
         (digest, manifest) = get_manifest_health(repo, tag)
 
