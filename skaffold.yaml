@@ -38,8 +38,6 @@ profiles:
     - command: delete
 
 - name: stage
-  activation:
-    - command: run
   patches:
     - op: replace
       path: /manifests/kustomize/paths/0
