@@ -1,6 +1,6 @@
 - op: replace
   path: /spec/rules/0/host
-  value: docker-registry-checker-prod
+  value: docker-registry-checker.int.k8s.vgnett.no
 - op: replace
   path: /spec/rules/0/http/paths/0/backend/service/name
   value: docker-registry-checker-prod

@@ -2,16 +2,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: docker-registry-checker
-  creationTimestamp: null
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: docker-registry-checker
-  strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
         app: docker-registry-checker
     spec:
@@ -19,7 +16,6 @@ spec:
       containers:
       - name: docker-registry-checker
         image: docker-registry-checker
-        resources: {}
         env:
           - name: FOO
             value: BAR
@@ -32,4 +28,4 @@ spec:
             port: 8000
           initialDelaySeconds: 3
           periodSeconds: 60
-status: {}
+

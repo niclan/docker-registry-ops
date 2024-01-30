@@ -1,24 +1,51 @@
 apiVersion: v1
 kind: Service
+# The service describes the network services a container running as
+# pod or pods offers.
+#
+# This service defines that the pod offers a service labeled with the
+# name "http" on port 8000 and that the service client should connect
+# to port 80.
+#
+# The pods the traffic is sent to is matched by the selector.  This
+# selector matches the label "app" with the value
+# "docker-registry-checker-dev" in the deplyment at the path
+# spec/template/metadata/labels
+
 metadata:
   name: docker-registry-checker
 spec:
   selector:
     app: docker-registry-checker-dev
   ports:
-  - protocol: TCP
+  - name: http
+    protocol: TCP
     port: 80
     targetPort: 8000
+  # ClusterIP is the default kind of service resource and will provide
+  # a load balancing mechanism if you have several pods matching the
+  # selector.
   type: ClusterIP
 
 ---
+
+# The ingress is read by some ingress controller (there may be
+# several).  It describes that a specific hostname should offer http
+# protocol and that traffic prefixed with "/" should be sent to the
+# service and port shown in the backend sub-document.  As you see you
+# can send different URLs to different services (and presumably
+# different pods).
+#
+# spec/rules/*/host is a hostname that must somehow resolve (by DNS
+# most likely) so that clients can look it up and put it
+# in the HTTP "Host:" header.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: docker-registry-checker
 spec:
   rules:
-  - host: docker-registry-checker-dev.k8s.vgnett.no
+  - host: docker-registry-checker-dev.int.k8s.vgnett.no
     http:
       paths:
       - path: /
@@ -27,4 +54,4 @@ spec:
           service:
             name: docker-registry-checker-dev
             port:
-              number: 80
+              name: http
