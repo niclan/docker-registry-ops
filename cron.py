@@ -67,7 +67,7 @@ def main():
     print("Running k8s-inventory.py every %d seconds" % interval)
 
     if args.daemon:
-        print("Daemonizing")
+        print("Daemonizing cron.py")
         daemonize()
 
     scheduler = sched.scheduler(time.time, time.sleep)
