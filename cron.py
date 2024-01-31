@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-#
-# cron.py: Script to run the some command at regular intervals.
-# This is a simple wrapper around the python sched module and is
-# meant to be used in containers and pods by using stdout/stderr to log
-# so it logs into the container/pod log.
-#
-# (C) 2024, Nicolai Langfeldt, Schibsted Products and Technology
-#
+
+"""cron.py: Script to run the one single command at regular intervals.
+This is a simple wrapper around the python sched module and is meant
+to be used in containers and pods by using stdout/stderr to log so it
+logs into the container/pod log.
+
+(C) 2024, Nicolai Langfeldt, Schibsted Products and Technology
+
+Usage:
+  cron.py -h
+
+"""
 
 import os
 import sys
@@ -15,7 +19,12 @@ import sched
 import time
 
 def daemonize():
-    """Simplest possible forking to background process"""
+    """Simplest possible forking to background process.  Don't mess
+    with the stderr and the stdout as daemonizations usually do: We
+    want the stderr and stdout to go to the containers output so it's
+    logged the normal containerish way.
+    """
+    
     try:
         pid = os.fork()
         if pid != 0:
@@ -29,6 +38,7 @@ def daemonize():
     
 
 def execute_task():
+    """Run the cron task once."""
     global task
     
     try:
@@ -40,6 +50,9 @@ def execute_task():
 
 
 def repeat_task():
+    """Schedule the task for execution and then schedule rescheduling
+    of it."""
+
     global interval, scheduler
     
     scheduler.enter(interval, 1, execute_task, ())
