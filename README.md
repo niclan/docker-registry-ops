@@ -2,6 +2,47 @@
 
 Some ops tools for docker-registry.
 
+- `k8s-inventory.py` - Collects a list of images used in your
+  kubernetes clusters and saves it in `images.json`
+- `registry-evictor.py` - After collecting the image inventory from
+  the clusters this program can delete (most of) the unreferenced
+  ones.  See below for more information.
+- `registry-count.py` - Just count the number of tags in your
+  registry, for pre-eviction and post-eviction stats.  We went from
+  400K tags to less than 10K.
+- `registry-checker.py` - We've seen that some of our pods images have
+  gone missing from our registry. Quite likely due to earlier cleanup
+  attempts and bugs in early versions of the registry-evictor.  Since
+  this has caused major headaches when we've had problems with our
+  cluster nodes and the pods needs to respawn on new nodes without the
+  image in the local docker cache we want to keep a firm eye on this.
+
+Libraries:
+- Registry.py - I was unable to find a usable python library for
+  docker-registry so I wrote a simple one myself to support the
+  registry tools.
+- Spinner.py - The simplest of progress indicators
+
+## Monitoring
+
+Still developing this:
+
+There is a skaffold based kubernetes deployment in this repository
+that will:
+- Run k8s-inventory and registry-checker at startup and every 15
+  minutes to make a report on missing image tags in the repository
+- Provides a trivial web server to query the result of the check.
+
+## AI support
+
+When writing this github copilot has been sometimes a quite able
+helper, sometimes quite helpless.  On the whole it's saved me some
+percent of typing and some time on looking up things.  But it also
+quite clearly hallucinates about REST endpoints that ought to exist
+(in this project both kubernetes and docker-registry APIs). GPT4 has
+also been of some help but it was easily confused about YAML
+indentation.
+
 ## Limitations
 
 This was made for our ops needs: We have multiple clusters configured
@@ -23,6 +64,12 @@ You need:
 - A docker registry
 - One or more kubernetes clusters
 - kubectl cli executable
+
+If you want to deploy to kubernetes (only needed for monitoring) you
+need:
+- [skaffold](https://skaffold.dev/) for deploying to kubernetes
+- [consul-template](https://github.com/hashicorp/consul-template) if
+  you want to get secrets from vault into the kubernetes pod
 
 Python needs some packages: see `requirements.txt`.  You can see if
 your OS package manager provides them and install them using that or

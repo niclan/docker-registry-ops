@@ -33,7 +33,34 @@ def json_get(url):
     
 
 class Registry:
+    """Class to handle the docker registry API.
+
+    Example:
+
+       reg = Registry("registry.example.com", true)
+       repos = reg.get_repositories()
+       for repo_name in repos:
+           print("Repo: %s" % repo_name)
+
+           tags = reg.get_tags(repo_name)
+
+           for tag in tags:
+               print("  Tag: %s" % tag)
+
+               digest, manifest = reg.get_manifest(repo_name, tag)
+               print("    Digest: %s" % digest)
+               print("    Manifest: %s" % manifest)
+    """
+
     def __init__(self, registry, do_delete = False):
+        """Initialize the registry object with the registry server
+        name.  If you want to actually delete manifests using the
+        delete_manifest function you have to specify do_delete=True.
+
+        The registry object has debug and verbose flags which you can
+        set directly to possibly get useful information.
+        """
+
         self.registry = registry
         self.do_delete = do_delete
         self.debug = False
@@ -41,6 +68,8 @@ class Registry:
 
 
     def get_repositories(self):
+        """Returns a list of repositories in the registry"""
+
         return json_get("https://%s/v2/_catalog?n=10000" % self.registry)["repositories"]
 
 
@@ -65,7 +94,6 @@ class Registry:
         On error returns: "", {}
 
         Bugs: No error information escapes from this function.
-
         """
 
         r = requests.get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag), \
@@ -89,6 +117,21 @@ class Registry:
         """Delete the manifest for a given digest in a repo.  The API
         does not support delting by repository:tag only by
         repository:digest.
+
+        Silly example that will delete your whole registry:
+        
+            reg = Registry("registry.example.com", true)
+            repos = reg.get_repositories()
+            for repo_name in repos:
+                tags = reg.get_tags(repo_name)
+
+                for tag in tags:
+                    digest, manifest = reg.get_manifest(repo_name, tag)
+                    if digest == "":
+                        print("Error getting manifest for %s:%s" % (repo_name, tag))
+                        continue
+
+                    reg.delete_manifest(repo_name, digest)
         """
 
         if not self.do_delete:
