@@ -17,10 +17,13 @@ class Spinner:
 
       sp = Spinner(prefix = "\b", postfix = "")
 
-    This will print backspace then the spinner character, so if something is
-    printed it comes after the spinner character on the line.
+    This will print backspace then the spinner character, so if
+    something is printed it comes after the spinner character on the
+    line.  prefix="\r" is also useful if you print status information
+    after the spinner; it returns to the start of the line not just
+    one character back.
 
-    There are 4 kinds of spinners.  The default is picked at random.  See
+    There are 5 kinds of spinners.  The default is picked at random.  See
     the kind method for more information and to set one specific one.
     
     Silly usage:
@@ -29,6 +32,7 @@ class Spinner:
       for i in range(100):
             sp.next()
             time.sleep(0.1)
+
     """
     
     def __init__(self, prefix = '', postfix = "\b", kind = None):
@@ -37,14 +41,13 @@ class Spinner:
         self.idx = 0
         
         if kind is None:
-            kind = random.randint(0, len(spinner)-1)
-
-        self.kind(kind)
+            self.random_kind()
+        else:
+            self.kind(kind)
 
 
     def random_kind(self):
         """Change the spinner kind to a random one."""
-        import random
         self.kind(random.randint(0, len(spinner)-1))
         self.idx = 0
 
@@ -55,14 +58,14 @@ class Spinner:
         - 1: .oOo      - Looks like a pulsing dot
         - 2: ⠇⠋⠙⠸⠴⠦  - Looks like a line spinning in a square,
                          kindly suggested by copilot, thanks!
-        - 3: odoqopod  - Looks like a circle with issues
+        - 3: -+|+      - Is it a dash? Is it a pipe?
+        - 4: odoqopod  - Looks like a circle with issues
 
         Number 2 is actually braile characters in UTF-8. So it
         might not work on your terminal.
 
         If you give a number outside the defined range it will be set
         to 0.
-
         """
         self.kind = new_kind
         if self.kind >= len(spinner): self.kind = 0
