@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
+import os
+import json
+import requests
 import argparse
+from pathlib import Path
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 class Router:
@@ -54,26 +59,104 @@ class RegistryHealthHTTPD(BaseHTTPRequestHandler):
             body = "Not found"
             response_code = 404
 
+        if "ERROR" in body:
+            response_code = 503 # Service unavailable
+
         body = body + "\n\r"
         body = bytes(body, "utf-8")
         self._HEAD(body, response=response_code)
 
         self.wfile.write(body)
 
+
     def do_HEAD(self):
         body = router.route(self.path, self)
 
-        response_code = 200
+        response_code = 200 # OK
 
         if body is None:
             body = "Not found"
-            response_code = 404
+            response_code = 404 # Not found
+
+        if "ERROR" in body:
+            response_code = 503 # Service unavailable
 
         self._HEAD(body, response=response_code)
 
 
 def health_check(request, path, query):
+    """Health check endpoint"""
+    uptime = get_uptime()
+
+    if uptime is None:
+        return "ERROR: Can't get pod uptime"
+
+    try:
+        imageReport = Path("/app/report/images.json").stat()
+    except FileNotFoundError:
+        imageReport = None
+
+    try:
+        checkTime = Path("/app/report/registry-check.json").stat()
+    except FileNotFoundError:
+        checkTime = None
+
+    if (imageReport is None) or (checkTime is None) and (uptime < 300):
+        # NOTE: the error message string is checked in
+        # check_registry()
+        return "ERROR: Some report file is missing"
+
+    print("Uptime: %d, imageReport: %s, checkTime: %s" % \
+          (uptime, imageReport.mtime, checkTime.mtime))
     return "OK"
+
+
+def ok():
+    """OK endpoint"""
+    return "OK - I'm here!"
+
+
+def check_registry():
+    """Check registry endpoint"""
+
+    health = health_check()
+
+    if "ERROR" in health and "report file" in health:
+        return "OK: No registry check available yet"
+
+    try:
+        check = Path("/app/report/registry-check.json").read_text()
+    except FileNotFoundError:
+        return "ERROR: Registry check is unavailable and pod is old enough!"
+
+    check = json.loads(check)
+
+
+def get_uptime():
+    """Get pod uptime from kubernetes"""
+
+    namespace = Path("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read_text()
+    token = Path("/var/run/secrets/kubernetes.io/serviceaccount/token").read_text()
+    pod_name = os.getenv('HOSTNAME')
+    kube_api = os.getenv('KUBERNETES_SERVICE_HOST')
+    kube_api_port = os.getenv('KUBERNETES_SERVICE_PORT')
+    auth = "Bearer %s" % token
+
+    r = requests.get('https://%s/api/v1/namespaces/%s/pods/%s' % \
+                     (kube_api, namespace, pod_name),
+                     headers={'Authorization': auth},
+                     verify='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
+
+    if r.status_code == 200:
+        startTime = r.json()['status']['startTime']
+        print("Pod startTime: %s" % startTime)
+        startTime = datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+        seconds = (datetime.now() - startTime).total_seconds()
+        print("Pod uptime: %d seconds" % seconds)
+        return seconds
+
+    print("Uptime query failed: %d" % r.status_code)
+    return None
 
 
 def main():
@@ -82,7 +165,9 @@ def main():
     args = parser.parse_args()
 
     global router
+    router.setup("/", ok)
     router.setup("/health", health_check)
+    router.setup("/nagios_check_registry", check_registry)
 
     web_server = HTTPServer(('', args.port), RegistryHealthHTTPD)
     print("Server started on http://%s:%s" % (web_server.server_name, web_server.server_port))
