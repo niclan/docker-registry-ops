@@ -35,10 +35,11 @@ class Spinner:
         self.prefix = prefix
         self.postfix = postfix
         self.idx = 0
+        
         if kind is None:
-            self.kind = random.randint(0, len(spinner)-1)
-        else:
-            self.kind = kind
+            kind = random.randint(0, len(spinner)-1)
+
+        self.kind(kind)
 
 
     def random_kind(self):
@@ -64,7 +65,7 @@ class Spinner:
 
         """
         self.kind = new_kind
-        if self.kind >= len(spinner[self.kind]): self.kind = 0
+        if self.kind >= len(spinner): self.kind = 0
         if self.kind < 0: self.kind = 0
 
 
@@ -84,6 +85,6 @@ class Spinner:
 
 
 # Spinner to show progress
-spinner = [ "|/-\\", ".oOo", "⠇⠋⠙⠸⠴⠦", "-+|+" ]
+spinner = [ "|/-\\", ".oOo", "⠇⠋⠙⠸⠴⠦", "-+|+", "odoqopod" ]
 # But only if we have a tty
 is_tty = sys.stdout.isatty()
