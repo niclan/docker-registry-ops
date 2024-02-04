@@ -88,6 +88,6 @@ class Spinner:
 
 
 # Spinner to show progress
-spinner = [ "|/-\\", ".oOo", "⠇⠋⠙⠸⠴⠦", "-+|+", "odoqopod" ]
+spinner = [ "|/-\\", ".oOo", "⠇⠋⠙⠸⠴⠦", "-+|+", "odoqopob" ]
 # But only if we have a tty
 is_tty = sys.stdout.isatty()
