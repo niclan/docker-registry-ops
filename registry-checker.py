@@ -114,10 +114,17 @@ def examine_by_report(image_report):
                                 image_report[path][ns]['Pending'] or
                                 image_report[path][ns]['ImagePullBackOff']) ]
 
-            phases = [ phase for ns in image_report[path]
-                       for phase in image_report[path][ns]
-                         if not ns.startswith("_") and image_report[path][ns][phase] ]
+            # Doing this as a list comprehension hurts my head too much
+            phases = []
+            for ns in image_report[path]:
+                if ns.startswith("_"):
+                    continue
+                for phase in image_report[path][ns]:
+                    if not phase.startswith("_") and \
+                      image_report[path][ns][phase]:
+                        phases.append(phase)
 
+            # Unique and sorted
             phases = list(set(phases))
             phases.sort()
             namespaces = list(set(namespaces))
@@ -164,9 +171,12 @@ def examine_by_registry(image_report, only=None):
 
         if tags is None:
             if len(find_image_by_repo(repo)) > 0:
-                errors.append({ 'kind': 'repository', 'name': repo, 'wrongs': 'no tags - but in use', 'inuse': True })
+                errors.append({ 'kind': 'repository', 'name':
+                                repo, 'wrongs': 'no tags - but in use',
+                                'inuse': True })
             else:
-                errors.append({ 'kind': 'repository', 'name': repo, 'wrongs': 'no tags', 'inuse': False })
+                errors.append({ 'kind': 'repository', 'name': repo,
+                                'wrongs': 'no tags', 'inuse': False })
             continue
 
         for tag in tags:
@@ -188,7 +198,8 @@ def examine_by_registry(image_report, only=None):
                 if manifest.status_code != 200:
                     wrongs.append("no manifest")
 
-                tag_errors.append({ 'kind': 'tag', 'name': repo_tag, 'wrongs': wrongs, 'inuse': in_use })
+                tag_errors.append({ 'kind': 'tag', 'name': repo_tag,
+                                    'wrongs': wrongs, 'inuse': in_use })
 
         repo_wrongs = 'See tags above'
 
@@ -200,28 +211,33 @@ def examine_by_registry(image_report, only=None):
         else:
             errors.extend(tag_errors)
 
-        errors.append({ 'kind': 'repository', 'name': repo, 'wrongs': repo_wrongs, 'inuse': repo_in_use })
+        errors.append({ 'kind': 'repository', 'name': repo,
+                        'wrongs': repo_wrongs, 'inuse': repo_in_use })
 
     return errors
 
 
 def main():
     parser = argparse.ArgumentParser(description='Check health of registry. By default only tags referenced in images.json')
-    parser.add_argument('-R', '--by-registry', action='store_true', \
-                        help='Loop over registries instead of images.json',
+    parser.add_argument('-R', '--by-registry', action='store_true',
+                        help='Loop over the content of the registry instead of images.json. This finds errors like missing tags and manifests, e.g. registry corruption.',
                         default=False)
     parser.add_argument('-r', '--repository', action="append",
                         help='Work on this repository instead  of all (can be repeated)')
+    parser.add_argument('-o', '--old-age', action="store", type=int, default=31,
+                        help='Only check images this many days or younger, default is 31. 0 means all images')
+    parser.add_argument('-s', '--spinner', action="store", type=int, default=None,
+                        help='Select what kind of progress spinner you prefer, default random')
     parser.add_argument('server', help='Registry server to check')
     args = parser.parse_args()
 
     global spinner
-    spinner = Spinner()
-
     global registry
-    registry = args.server
-
     global image_report
+    global dirname
+
+    spinner = Spinner(kind=args.spinner)
+    registry = args.server
 
     savedir = os.environ.get('REPORTDIR', '.')
     print("Loading images list from %s/images.json" % savedir)
@@ -263,6 +279,7 @@ def main():
             for e in errors:
                 w.writerow(e)
         print("Wrote report to %s/%s" % (dirname, "registry-check.csv"))
+
 
 if __name__ == "__main__":
     main()
