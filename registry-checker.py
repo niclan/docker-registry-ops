@@ -132,7 +132,7 @@ def examine_by_report(image_report):
 
             # NOTE! All errors that goes to the same file must have the
             # same fields, for the sake of the CSV writer.
-            errors.append({ 'tag': repo_tag, 'wrongs': wrongs, 'namespaces': namespaces, 'phase': phases })
+            errors.append({ 'tag': path, 'wrongs': wrongs, 'namespaces': namespaces, 'phase': phases })
 
             print("  Examined %d/%d images, %d errors" % (i, len(image_report), len(errors)),
                   end="\r", flush=True)
