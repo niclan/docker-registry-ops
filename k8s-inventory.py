@@ -119,6 +119,9 @@ def load_from_kubernetes(k8s, context=None):
                images[c.image]['_last_wanted'] > c_age:
                 images[c.image]['_last_wanted'] = c_age
 
+            if i.spec.node_name is not None:
+                images[c.image][pod_name]['_node'] = i.spec.node_name
+
     print("* Found %s pods" % count)
     print("* Images until now: %d, and %d are too old" % (len(images), too_old))
 
