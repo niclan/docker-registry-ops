@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+"""Simple web server to check the health of the docker registry vs the
+running kubernets - in a pod."""
+
 import os
 import json
 import requests
@@ -8,14 +11,20 @@ from pathlib import Path
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+
 class Router:
+    """Simple request router, using only the path part of the URL and
+    just passing the query part to the handler."""
+
     def __init__(self):
         self.routes = {}
     
     def setup(self, path, handler):
+        """Setup a route"""
         self.routes[path] = handler
 
     def route(self, path, request):
+        """Route a request to the correct handler"""
         # 1 means split only once, making 2 elements
         (httppath) = path.split("?", 1)
 
@@ -34,23 +43,26 @@ class Router:
         else:
             return None
 
-router = Router()
-
 
 class RegistryHealthHTTPD(BaseHTTPRequestHandler):
+
     def send_response(self, code, message=None):
         """Superclass override: Send a response without a Server: header."""
         self.log_request(code)
         self.send_response_only(code, message)
         self.send_header('Date', self.date_time_string())
 
+
     def _HEAD(self, body, response=200):
+        """Make apropriate headers for GET or HEAD requests"""
         self.send_response(response)
         self.send_header("Content-type", "text/plain;chatset=utf-8")
         self.send_header("Content-length", len(body))
         self.end_headers()
 
+
     def do_GET(self):
+        """Handle GET requests"""
         body = router.route(self.path, self)
 
         response_code = 200
@@ -70,6 +82,7 @@ class RegistryHealthHTTPD(BaseHTTPRequestHandler):
 
 
     def do_HEAD(self):
+        """Handle HEAD requests"""
         body = router.route(self.path, self)
 
         response_code = 200 # OK
@@ -92,51 +105,145 @@ def health_check(request, path, query):
         return "ERROR: Can't get pod uptime"
 
     try:
-        imageReport = Path("/app/report/images.json").stat()
+        image_report = Path(f"{report_dir}/images.json").stat()
     except FileNotFoundError:
-        imageReport = None
+        image_report = None
 
     try:
-        checkTime = Path("/app/report/registry-check.json").stat()
+        check_time = Path(f"{report_dir}/registry-check.json").stat()
     except FileNotFoundError:
-        checkTime = None
+        check_time = None
 
-    if (imageReport is None) or (checkTime is None) and (uptime < 300):
-        # NOTE: the error message string is checked in
-        # check_registry()
+    # If the pod is young enough, we don't care about the report files
+    if (image_report is None or check_time is None) and (uptime < 300):
         return "ERROR: Some report file is missing"
 
-    print("Uptime: %d, imageReport: %s, checkTime: %s" % \
-          (uptime, imageReport.mtime, checkTime.mtime))
+    # print("Uptime: %d, image_report: %s, check_time: %s" % \
+    #       (uptime, image_report.st_mtime, check_time.st_mtime))
     return "OK"
 
 
-def ok():
+def ok(request, path, query):
     """OK endpoint"""
     return "OK - I'm here!"
 
 
-def check_registry():
+def image_info(tag, images):
+    """Get image info from the tag and images report"""
+
+    tag_info = images[tag]
+
+    info = "%s is running on: " % tag
+    nodes = []
+    some_pod = ""
+
+    for pod in tag_info.keys():
+        if pod.startswith("_"):
+            continue
+
+        if tag_info[pod]["Running"]:
+            some_pod = pod
+            nodes.append(tag_info[pod]["_node"])
+
+    if len(nodes) > 0:
+        return "%s (e.g. %s) is running on: %s" % (tag, some_pod, ", ".join(nodes))
+
+    return None
+
+
+def list_errors(request, path, query):
+    """List errors endpoint"""
+
+    try:
+        check = Path(f"{report_dir}/registry-check.json").read_text()
+        images = Path(f"{report_dir}/images.json").read_text()
+    except FileNotFoundError:
+        return "ERROR: Registry check is unavailable and pod is old enough!"
+
+    check = json.loads(check)
+    images = json.loads(images)
+
+    errors = ""
+    all_info = ""
+
+    for error in check:
+        if "prod" in "=".join(error["namespaces"]):
+            info = image_info(error["tag"], images)
+            if info is not None:
+                all_info += "Errors: %s; %s\n\n" % (error["wrongs"], info)
+
+    return all_info
+
+
+def summarize(check):
+    """Summarize the check"""
+    image_pull_errors = 0
+    prod_errors = 0
+    stage_errors = 0
+    all_errors = 0
+
+    for error in check:
+        if "prod" in "=".join(error["namespaces"]):
+            prod_errors += 1
+
+            if "ImagePullBackOff" in error["phase"]:
+                image_pull_errors += 1
+                prod_errors -= 1
+
+    for error in check:
+        # "stage" or "staging"
+        if "stag" in "=".join(error["namespaces"]):
+            stage_errors += 1
+
+    for error in check:
+        all_errors += 1
+
+    all_errors -= (prod_errors + stage_errors)
+
+    if image_pull_errors > 0:
+        return f"CRITICAL: Missing images: {image_pull_errors} ImagePullBackOff errors in prod, {prod_errors} in prod, {stage_errors} in staging, and {all_errors} in other namespaces"
+
+    if prod_errors > 0:
+        return f"WARNING: Missing images: 0 ImagePullBackOff errors in prod, {prod_errors} errors in prod, {stage_errors} in staging, and {all_errors} in other namespaces"
+
+    if stage_errors > 0:
+        return f"WARNING: Missing images: {stage_errors} errors in stage and {all_errors} in other namespaces"
+
+    if all_errors > 0:
+        return f"OK: Missing images: {all_errors} errors in non-production, non-stage namespaces"
+
+    return "OK: No missing images anywhere"
+
+
+def check_registry(request, path, query):
     """Check registry endpoint"""
 
-    health = health_check()
+    health = health_check(None, None, None)
 
     if "ERROR" in health and "report file" in health:
         return "OK: No registry check available yet"
 
     try:
-        check = Path("/app/report/registry-check.json").read_text()
+        check = Path(f"{report_dir}/registry-check.json").read_text()
     except FileNotFoundError:
         return "ERROR: Registry check is unavailable and pod is old enough!"
 
     check = json.loads(check)
 
+    return summarize(check)
+
 
 def get_uptime():
     """Get pod uptime from kubernetes"""
 
-    namespace = Path("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read_text()
-    token = Path("/var/run/secrets/kubernetes.io/serviceaccount/token").read_text()
+    # Kubernetes API usage from a pod without the whole kubernetes module
+    try:
+        namespace = Path("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read_text()
+        token = Path("/var/run/secrets/kubernetes.io/serviceaccount/token").read_text()
+    except FileNotFoundError:
+        print("Hmm, we're not in kubernetes I think, faking uptime")
+        return 600 # Fake that we have uptime
+
     pod_name = os.getenv('HOSTNAME')
     kube_api = os.getenv('KUBERNETES_SERVICE_HOST')
     kube_api_port = os.getenv('KUBERNETES_SERVICE_PORT')
@@ -148,10 +255,10 @@ def get_uptime():
                      verify='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
 
     if r.status_code == 200:
-        startTime = r.json()['status']['startTime']
-        print("Pod startTime: %s" % startTime)
-        startTime = datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-        seconds = (datetime.now() - startTime).total_seconds()
+        start_time = r.json()['status']['start_time']
+        print("Pod start_time: %s" % start_time)
+        start_time = datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%SZ')
+        seconds = (datetime.now() - start_time).total_seconds()
         print("Pod uptime: %d seconds" % seconds)
         return seconds
 
@@ -161,16 +268,25 @@ def get_uptime():
 
 def main():
     parser = argparse.ArgumentParser(description='Docker registry health checker in a pod')
-    parser.add_argument('-p', '--port', type=int, default=8000, help='Port to listen on')
+    parser.add_argument('-p', '--port', type=int, default=8000,
+                        help='Port to listen on')
     args = parser.parse_args()
 
+    global report_dir
+    report_dir = os.getenv('REPORTDIR',
+                           "check-report-%s" %
+                           datetime.now().strftime("%Y-%m-%d-%H:%M:%S"))
+
     global router
+    router = Router()
     router.setup("/", ok)
     router.setup("/health", health_check)
     router.setup("/nagios_check_registry", check_registry)
+    router.setup("/list_errors", list_errors)
 
     web_server = HTTPServer(('', args.port), RegistryHealthHTTPD)
-    print("Server started on http://%s:%s" % (web_server.server_name, web_server.server_port))
+    print("Server started on http://%s:%s" %
+          (web_server.server_name, web_server.server_port))
 
     try:
         web_server.serve_forever()
