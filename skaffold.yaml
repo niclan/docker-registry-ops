@@ -48,7 +48,7 @@ profiles:
     - op: replace
       path: /deploy/kubectl/defaultNamespace
       value: ops-staging
-    - op: replace
+    - op: add
       path: /build/tagPolicy
       value:
         # The Makefile forces git commit before deploy
@@ -62,7 +62,7 @@ profiles:
     - op: replace
       path: /deploy/kubectl/defaultNamespace
       value: ops-production
-    - op: replace
+    - op: add
       path: /build/tagPolicy
       value:
         # The Makefile forces git commit before deploy
