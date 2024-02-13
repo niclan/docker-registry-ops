@@ -255,7 +255,8 @@ def get_uptime():
                      verify='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
 
     if r.status_code == 200:
-        start_time = r.json()['status']['start_time']
+        print("Pod uptime query OK")
+        start_time = r.json()['status']['startTime']
         print("Pod start_time: %s" % start_time)
         start_time = datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%SZ')
         seconds = (datetime.now() - start_time).total_seconds()
