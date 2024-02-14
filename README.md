@@ -18,6 +18,7 @@ Some ops tools for docker-registry.
   image in the local docker cache we want to keep a firm eye on this.
 
 Libraries:
+
 - Registry.py - I was unable to find a usable python library for
   docker-registry so I wrote a simple one myself to support the
   registry tools.
@@ -29,6 +30,7 @@ Still developing this:
 
 There is a skaffold based kubernetes deployment in this repository
 that will:
+
 - Run k8s-inventory and registry-checker at startup and every 15
   minutes to make a report on missing image tags in the repository
 - Provides a trivial web server to query the result of the check.
@@ -67,6 +69,7 @@ You need:
 
 If you want to deploy to kubernetes (only needed for monitoring) you
 need:
+
 - [skaffold](https://skaffold.dev/) for deploying to kubernetes
 - [consul-template](https://github.com/hashicorp/consul-template) if
   you want to get secrets from vault into the kubernetes pod
@@ -103,17 +106,17 @@ or trunkated it may delete the wrong things.  Once you have a
 reasonably fresh one you can run `./registry-evictor.py`. It will loop
 over all repositories and tags and:
 
-   0. If there are less than 10 images listed it aborts
-   1. For repositories which are not listed (as used) in `images.json`
-      delete all the manifests.
-   2. For repositories that are listed (as used) in `images.json` it
-      will:
-      - Keep the 3 last tags. "latest" is also a tag and is counted
-      - Keep all referenced tags and the two before it (=3)
-      - Delete everything else
+1. If there are less than 10 images listed it aborts
+1. For repositories which are not listed (as used) in `images.json`
+   delete all the manifests.
+1. For repositories that are listed (as used) in `images.json` it
+   will:
+  - Keep the 3 last tags. "latest" is also a tag and is counted
+  - Keep all referenced tags and the two before it (=3)
+  - Delete everything else
 
-    Please have a look at the documentation at the top of the script
-    for information about how to run it and restrictions.
+Please have a look at the documentation at the top of the script for
+information about how to run it and restrictions.
 
 After this completes you can run the docker-registry garbage
 collection routine to reclaim disk space.

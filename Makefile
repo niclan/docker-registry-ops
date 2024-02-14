@@ -6,14 +6,25 @@ default:
 	@echo
 	@echo Use one of these targets:
 	@echo
-	@echo "  container  - build a container just like jenkins does"
-	@echo "  standalone - after making \"container\" you can make standalone, this"
-	@echo "               makes the container look more like it will in kubernetes"
-	@echo "               and copies _db.php to provide a database configuration that"
-	@echo "               does not rely on secrets from vault"
+	@echo "  webserver  - Run the webserver in the local environment"
+	@echo "  container  - build a container"
 	@echo "  run        - Run the container with redirect from 8080 on localhost to"
 	@echo "               apache inside.  You probably want to make \"standalone\" first"
 	@echo "  shell      - Start a shell in the container to inspect it"
+	@echo
+	@echo "These deploys to kubernetes:"
+	@echo "  dev        - Make secret file and run skaffold dev"
+	@echo "  stage      - Make secret file and run skaffold run -p stage"
+	@echo "  prod       - Make secret file and run skaffold run -p prod"
+	@echo "  secret     - Create the secret file for the vault"
+	@echo
+	@echo "Notes:"
+	@echo " * making secrets requires setting VAULT_ADDR and then VAULT_TOKEN or"
+	@echo "   doing vault login (see also vault/Makefile)"
+	@echo " * making stage or prod requires a clean git status/git commit"
+	@echo " * make webserver requires running first './k8s-inventory.py' and then"
+	@echo "   './registry-checker.py' and then doing"
+	@echo "   'REPORTDIR=./check-report-<something> make webserver'"
 	@echo
 
 webserver:
@@ -24,7 +35,7 @@ container:
 	docker build -t docker-registry-checker .
 
 run: container
-	docker container run -p 8080:80 --rm -it docker-registry-checker:latest
+	docker container run -p 8000:80 --rm -it docker-registry-checker:latest
 
 # Build container (jenkins like) or standalone (looks like kubernetes
 # env, isn't) first
