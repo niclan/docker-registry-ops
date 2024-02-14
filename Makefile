@@ -54,7 +54,7 @@ stage:
 
 staging: secret
 	@if [ -n "$(PORCELAIN)" ]; then echo "Commit everything before a production push, aborting"; exit 1; fi
-	skaffold run -p stage
+	skaffold run -p staging
 
 prod:	secret
 	@if [ -n "$(PORCELAIN)" ]; then echo "Commit everything before a production push, aborting"; exit 1; fi
