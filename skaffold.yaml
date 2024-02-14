@@ -37,7 +37,7 @@ profiles:
   activation:
     - command: dev
 
-- name: stage
+- name: staging
   activation:
     - command: run
     - command: delete

@@ -38,7 +38,10 @@ secret:
 dev:	secret
 	skaffold dev
 
-stage:	secret
+stage:
+	@echo Please use "make staging" instead of "make stage"
+
+staging: secret
 	@if [ -n "$(PORCELAIN)" ]; then echo "Commit everything before a production push, aborting"; exit 1; fi
 	skaffold run -p stage
 
