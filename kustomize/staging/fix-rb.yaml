@@ -8,7 +8,7 @@ metadata:
 subjects:
 - kind: "ServiceAccount"
   name: "sa-docker-registry-checker-staging"
-  namespace: ops-stage
+  namespace: ops-staging
 roleRef:
   name: "cr-docker-registry-checker-staging"
 
