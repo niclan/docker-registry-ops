@@ -11,6 +11,8 @@ from pathlib import Path
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+images = None
+
 
 class Router:
     """Simple request router, using only the path part of the URL and
@@ -45,6 +47,8 @@ class Router:
 
 
 class RegistryHealthHTTPD(BaseHTTPRequestHandler):
+    """Simple HTTP server to serve a simple task, avoiding larger
+    frameworks."""
 
     def send_response(self, code, message=None):
         """Superclass override: Send a response without a Server: header."""
@@ -61,11 +65,25 @@ class RegistryHealthHTTPD(BaseHTTPRequestHandler):
         self.end_headers()
 
 
-    def do_GET(self):
-        """Handle GET requests"""
-        body = router.route(self.path, self)
+    def _GET(self):
+        """Do the work common for HEAD and GET requests for getting
+        and interpreting the response.
 
-        response_code = 200
+        Detect if there is a error or not by looking for the string
+        "ERROR" in the response.  If we find it we return 503.  If we
+        don't find the path or no content (Null) is returned by the
+        handler we return 404. Otherwise we return 200.
+
+        Some responses are for a nagios plugin.  The words "OK",
+        "WARNING", "CRITICAL", "UNKNOWN" are used by the nagios
+        plugwin to detect what to set the exit code to.  Do not use
+        these words to signal anything to do with the HTTP protocol.
+
+        """
+
+        response_code = 200  # Assume it goes well!
+
+        body = router.route(self.path, self)
 
         if body is None:
             body = "Not found"
@@ -75,26 +93,38 @@ class RegistryHealthHTTPD(BaseHTTPRequestHandler):
             response_code = 503 # Service unavailable
 
         body = body + "\n\r"
+        # This recodes the string to a byte array.  The things python
+        # is particular about...
         body = bytes(body, "utf-8")
-        self._HEAD(body, response=response_code)
 
-        self.wfile.write(body)
+        return (body, response_code)
+
+
+    def do_GET(self):
+        (body, response_code) = self._GET()
+        self._HEAD(body, response=response_code)
+        if body is not None: self.wfile.write(body)
 
 
     def do_HEAD(self):
-        """Handle HEAD requests"""
-        body = router.route(self.path, self)
-
-        response_code = 200 # OK
-
-        if body is None:
-            body = "Not found"
-            response_code = 404 # Not found
-
-        if "ERROR" in body:
-            response_code = 503 # Service unavailable
-
+        (body, response_code) = self._GET()
         self._HEAD(body, response=response_code)
+
+
+### Helper procedures ###
+
+def load_images(text=None):
+    """Load images from string"""
+
+    global images
+
+    if images is not None:
+        return  # Already loaded
+
+    if text is None: # Caller did not provide text
+        text = Path(f"{report_dir}/images.json").read_text()
+
+    images = json.loads(text)
 
 
 def health_check(request, path, query):
@@ -123,15 +153,13 @@ def health_check(request, path, query):
     return "OK"
 
 
-def ok(request, path, query):
-    """OK endpoint"""
-    return "OK - I'm here!"
-
-
-def image_info(tag, images):
+def image_info(tag):
     """Get image info from the tag and images report"""
 
-    tag_info = images[tag]
+    global images
+
+    if images is None:
+        load_images()
 
     info = "%s is running on: " % tag
     nodes = []
@@ -151,8 +179,65 @@ def image_info(tag, images):
     return None
 
 
+def summarize(check):
+    """Summarize the check"""
+    image_pull_errors = 0
+    prod_errors = 0
+    stage_errors = 0
+    all_errors = 0
+    tags = []
+
+    for error in check:
+        if "prod" in "=".join(error["namespaces"]):
+            prod_errors += 1
+
+            if "ImagePullBackOff" in error["phase"]:
+                image_pull_errors += 1
+                prod_errors -= 1
+                tag_info = image_info(error["tag"])
+                if tag_info is None:
+                    tags.append(f'Missing: {error["tag"]}')
+                else:
+                    tags.append(f'Missing: {error["tag"]} (but {tag_info})')
+
+    for error in check:
+        # "stage" or "staging"
+        if "stag" in "=".join(error["namespaces"]):
+            stage_errors += 1
+
+    for error in check:
+        all_errors += 1
+
+    all_errors -= (prod_errors + stage_errors)
+
+    if image_pull_errors > 0:
+        errormsg = [ f"CRITICAL: Missing images: {image_pull_errors} ImagePullBackOff errors in prod, {prod_errors} in prod, {stage_errors} in staging, and {all_errors} in other namespaces" ]
+        errormsg.extend(tags)
+        return "\n".join(errormsg)
+
+    if prod_errors > 0:
+        return f"WARNING: Missing images: 0 ImagePullBackOff errors in prod, {prod_errors} errors in prod, {stage_errors} in staging, and {all_errors} in other namespaces"
+
+    if stage_errors > 0:
+        return f"WARNING: Missing images: {stage_errors} errors in stage and {all_errors} in other namespaces"
+
+    if all_errors > 0:
+        return f"OK: Missing images: {all_errors} errors in non-production, non-stage namespaces"
+
+    return "OK: No missing images anywhere"
+
+
+### HTTP endpoints ###
+
+def ok(request, path, query):
+    """OK endpoint"""
+    return "OK - I'm here!"
+
+
 def list_errors(request, path, query):
     """List errors endpoint"""
+
+    global images
 
     try:
         check = Path(f"{report_dir}/registry-check.json").read_text()
@@ -161,7 +246,7 @@ def list_errors(request, path, query):
         return "ERROR: Registry check is unavailable and pod is old enough!"
 
     check = json.loads(check)
-    images = json.loads(images)
+    load_images(images)
 
     errors = ""
     all_info = ""
@@ -175,44 +260,27 @@ def list_errors(request, path, query):
     return all_info
 
 
-def summarize(check):
-    """Summarize the check"""
-    image_pull_errors = 0
-    prod_errors = 0
-    stage_errors = 0
-    all_errors = 0
+def list_image_pull_back_offs(request, path, query):
+    """List ImagePullBackOff errors"""
+
+    try:
+        check = Path(f"{report_dir}/registry-check.json").read_text()
+    except FileNotFoundError:
+        return "ERROR: Registry check is unavailable and pod is old enough!"
+
+    check = json.loads(check)
+
+    errors = ""
 
     for error in check:
-        if "prod" in "=".join(error["namespaces"]):
-            prod_errors += 1
+        if "prod" in "=".join(error["namespaces"]) and \
+           "ImagePullBackOff" in error["phase"]:
+                errors += f"Error: {error['tag']} in {error['namespaces']}\n"
 
-            if "ImagePullBackOff" in error["phase"]:
-                image_pull_errors += 1
-                prod_errors -= 1
+    if errors == "":
+        return "No ImagePullBackOff errors"
 
-    for error in check:
-        # "stage" or "staging"
-        if "stag" in "=".join(error["namespaces"]):
-            stage_errors += 1
-
-    for error in check:
-        all_errors += 1
-
-    all_errors -= (prod_errors + stage_errors)
-
-    if image_pull_errors > 0:
-        return f"CRITICAL: Missing images: {image_pull_errors} ImagePullBackOff errors in prod, {prod_errors} in prod, {stage_errors} in staging, and {all_errors} in other namespaces"
-
-    if prod_errors > 0:
-        return f"WARNING: Missing images: 0 ImagePullBackOff errors in prod, {prod_errors} errors in prod, {stage_errors} in staging, and {all_errors} in other namespaces"
-
-    if stage_errors > 0:
-        return f"WARNING: Missing images: {stage_errors} errors in stage and {all_errors} in other namespaces"
-
-    if all_errors > 0:
-        return f"OK: Missing images: {all_errors} errors in non-production, non-stage namespaces"
-
-    return "OK: No missing images anywhere"
+    return errors
 
 
 def check_registry(request, path, query):
@@ -283,6 +351,7 @@ def main():
     router.setup("/", ok)
     router.setup("/health", health_check)
     router.setup("/nagios_check_registry", check_registry)
+    router.setup("/backoffs", list_image_pull_back_offs)
     router.setup("/list_errors", list_errors)
 
     web_server = HTTPServer(('', args.port), RegistryHealthHTTPD)
