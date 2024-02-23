@@ -1,13 +1,18 @@
 #!/bin/bash
-
+#
+# (C) 2024, Nicolai Langfeldt, Schibsted Product and Technology
+#
 # Plugin to check the status of a Docker registry via the kubernetes
 # pod webserver.
 
 URL="$1"
 
 if [ -z "$URL" ]; then
-  echo "Usage: $0 <registry-url>"
-  exit 1
+    echo "Usage: $0 <URL>"
+    echo "  Checks URl/nagios_check_registry, and returns the status"
+    echo "  of the registry."
+    echo "  Example: $0 http://localhost:8000"
+    exit 1
 fi
 
 # Check if the registry sane
