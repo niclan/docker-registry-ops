@@ -69,7 +69,7 @@ def find_image_by_repo(repo_name):
     return [ path for path in image_report if path.startswith(search_string) ]
 
 
-def examine_by_report(image_report):
+def examine_by_report(image_report, only=None):
     regPrefix = f'{registry}/'
 
     errors = []
@@ -77,12 +77,23 @@ def examine_by_report(image_report):
     i = 0
 
     for path in image_report:
-        spinner.next()
-
         if not path.startswith(regPrefix):
             continue
-        
+
         repo_tag = path.replace(regPrefix,"",1)
+
+        if only is not None:
+            # print("Examine %s for %s" % (repo_tag, only))
+            matched = False
+            for o in only:
+                if repo_tag.startswith(o):
+                    matched = True
+                    break
+
+            if not matched:
+                continue
+
+        spinner.next()
 
         # We only care about images that are running or pending, the
         # state of way too many dead pods is kept around.
@@ -93,7 +104,11 @@ def examine_by_report(image_report):
 
         i += 1
 
-        (repo, tag) = repo_tag.split(":",1)
+        if '@sha256:' in repo_tag:
+            # Digest is used instead of tag
+            (repo, tag) = repo_tag.split("@",1)
+        else:
+            (repo, tag) = repo_tag.split(":",1)
 
         (digest, manifest) = get_manifest_health(repo, tag)
 
@@ -246,12 +261,13 @@ def main():
 
     spinner.next()
 
+    only=None
+    if args.repository: only=args.repository
+    
     if args.by_registry:
-        only=None
-        if args.repository: only=args.repository
         errors = examine_by_registry(image_report, only)
     else:
-        errors = examine_by_report(image_report)
+        errors = examine_by_report(image_report, only)
 
     print()
     
