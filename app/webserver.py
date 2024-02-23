@@ -162,8 +162,11 @@ def image_info(tag):
         load_images()
 
     info = "%s is running on: " % tag
-    nodes = []
+    run_nodes = []
+    ran_nodes = []
     some_pod = ""
+
+    tag_info = images[tag]
 
     for pod in tag_info.keys():
         if pod.startswith("_"):
@@ -171,10 +174,16 @@ def image_info(tag):
 
         if tag_info[pod]["Running"]:
             some_pod = pod
-            nodes.append(tag_info[pod]["_node"])
+            run_nodes.append(tag_info[pod]["_node"])
 
-    if len(nodes) > 0:
-        return "%s (e.g. %s) is running on: %s" % (tag, some_pod, ", ".join(nodes))
+        if tag_info[pod]["Succeeded"] or tag_info[pod]["Failed"]:
+            ran_nodes.append(tag_info[pod]["_node"])
+
+    if len(run_nodes) > 0:
+        return "is running on: %s" % ", ".join(run_nodes)
+
+    if len(ran_nodes) > 0:
+        return "has run on: %s" % ", ".join(ran_nodes)
 
     return None
 
@@ -186,6 +195,7 @@ def summarize(check):
     stage_errors = 0
     all_errors = 0
     tags = []
+    lesser_tags = []
 
     for error in check:
         if "prod" in "=".join(error["namespaces"]):
@@ -196,9 +206,16 @@ def summarize(check):
                 prod_errors -= 1
                 tag_info = image_info(error["tag"])
                 if tag_info is None:
-                    tags.append(f'Missing: {error["tag"]}')
+                    tags.append(f'ImagePullBackOff: {error["tag"]} (and not running anywhere)')
                 else:
-                    tags.append(f'Missing: {error["tag"]} (but {tag_info})')
+                    tags.append(f'ImagePullBackOff: {error["tag"]} (but {tag_info})')
+
+            elif len(error["wrongs"]) > 0:
+                tag_info = image_info(error["tag"])
+                if tag_info is None:
+                    lesser_tags.append(f'{error["tag"]} (and not running anywhere)')
+                else:
+                    lesser_tags.append(f'{error["tag"]} ({tag_info})')
 
     for error in check:
         # "stage" or "staging"
@@ -211,8 +228,9 @@ def summarize(check):
     all_errors -= (prod_errors + stage_errors)
 
     if image_pull_errors > 0:
-        errormsg = [ f"CRITICAL: Missing images: {image_pull_errors} ImagePullBackOff errors in prod, {prod_errors} in prod, {stage_errors} in staging, and {all_errors} in other namespaces" ]
+        errormsg = [ f"CRITICAL: Missing images: {image_pull_errors} ImagePullBackOff errors in prod. Otherwise: {prod_errors} image problems in prod, {stage_errors} in staging, and {all_errors} in other namespaces" ]
         errormsg.extend(tags)
+        errormsg.extend(lesser_tags)
         return "\n".join(errormsg)
 
     if prod_errors > 0:
