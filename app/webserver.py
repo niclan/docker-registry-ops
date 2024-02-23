@@ -252,55 +252,6 @@ def ok(request, path, query):
     return "OK - I'm here!"
 
 
-def list_errors(request, path, query):
-    """List errors endpoint"""
-
-    global images
-
-    try:
-        check = Path(f"{report_dir}/registry-check.json").read_text()
-        images = Path(f"{report_dir}/images.json").read_text()
-    except FileNotFoundError:
-        return "ERROR: Registry check is unavailable and pod is old enough!"
-
-    check = json.loads(check)
-    load_images(images)
-
-    errors = ""
-    all_info = ""
-
-    for error in check:
-        if "prod" in "=".join(error["namespaces"]):
-            info = image_info(error["tag"], images)
-            if info is not None:
-                all_info += "Errors: %s; %s\n\n" % (error["wrongs"], info)
-
-    return all_info
-
-
-def list_image_pull_back_offs(request, path, query):
-    """List ImagePullBackOff errors"""
-
-    try:
-        check = Path(f"{report_dir}/registry-check.json").read_text()
-    except FileNotFoundError:
-        return "ERROR: Registry check is unavailable and pod is old enough!"
-
-    check = json.loads(check)
-
-    errors = ""
-
-    for error in check:
-        if "prod" in "=".join(error["namespaces"]) and \
-           "ImagePullBackOff" in error["phase"]:
-                errors += f"Error: {error['tag']} in {error['namespaces']}\n"
-
-    if errors == "":
-        return "No ImagePullBackOff errors"
-
-    return errors
-
-
 def check_registry(request, path, query):
     """Check registry endpoint"""
 
@@ -344,7 +295,6 @@ def get_uptime():
         start_time = r.json()['status']['startTime']
         start_time = datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%SZ')
         seconds = (datetime.now() - start_time).total_seconds()
-        print("Pod uptime: %d seconds" % seconds)
         return seconds
 
     print("Uptime query failed: %d" % r.status_code)
@@ -367,8 +317,6 @@ def main():
     router.setup("/", ok)
     router.setup("/health", health_check)
     router.setup("/nagios_check_registry", check_registry)
-    router.setup("/backoffs", list_image_pull_back_offs)
-    router.setup("/list_errors", list_errors)
 
     web_server = HTTPServer(('', args.port), RegistryHealthHTTPD)
     print("Server started on http://%s:%s" %
