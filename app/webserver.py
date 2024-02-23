@@ -234,7 +234,9 @@ def summarize(check):
         return "\n".join(errormsg)
 
     if prod_errors > 0:
-        return f"WARNING: Missing images: 0 ImagePullBackOff errors in prod, {prod_errors} errors in prod, {stage_errors} in staging, and {all_errors} in other namespaces"
+        errormsg = [ f"WARNING: Missing images: 0 ImagePullBackOff errors in prod, {prod_errors} errors in prod, {stage_errors} in staging, and {all_errors} in other namespaces" ]
+        errormsg.extend(lesser_tags)
+        return "\n".join(errormsg)
 
     if stage_errors > 0:
         return f"WARNING: Missing images: {stage_errors} errors in stage and {all_errors} in other namespaces"
