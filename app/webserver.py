@@ -213,9 +213,9 @@ def summarize(check):
             elif len(error["wrongs"]) > 0:
                 tag_info = image_info(error["tag"])
                 if tag_info is None:
-                    lesser_tags.append(f'{error["tag"]} (and not running anywhere)')
+                    lesser_tags.append(f'{error["wrongs"]}: {error["tag"]} (and not running anywhere)')
                 else:
-                    lesser_tags.append(f'{error["tag"]} ({tag_info})')
+                    lesser_tags.append(f'{error["wrongs"]}: {error["tag"]} ({tag_info})')
 
     for error in check:
         # "stage" or "staging"
@@ -341,9 +341,7 @@ def get_uptime():
                      verify='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
 
     if r.status_code == 200:
-        print("Pod uptime query OK")
         start_time = r.json()['status']['startTime']
-        print("Pod start_time: %s" % start_time)
         start_time = datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%SZ')
         seconds = (datetime.now() - start_time).total_seconds()
         print("Pod uptime: %d seconds" % seconds)
