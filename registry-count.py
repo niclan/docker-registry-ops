@@ -8,9 +8,12 @@
 # Prerequisites:
 #
 
+import sys
+import socket
+import Spinner
+import requests
 import argparse
 import Registry
-import Spinner
 
 def main():
     parser = argparse.ArgumentParser(description='Count number of tags in registry')
@@ -26,7 +29,13 @@ def main():
 
     reg = Registry.Registry(args.server)
 
-    for repo_name in reg.get_repositories():
+    try:
+        repositories = reg.get_repositories()
+    except requests.exceptions.ConnectionError as e:
+        print("Failed to connect to %s" % args.server)
+        sys.exit(1)
+
+    for repo_name in repositories:
         num_repos += 1
         spinner.next()
         tags = reg.get_tags(repo_name)
