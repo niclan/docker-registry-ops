@@ -57,15 +57,12 @@ def load_from_kubernetes(k8s, context=None):
     # the container since we're all about the container images really.
     
     for i in k8s.list_pod_for_all_namespaces(watch=False).items:
-        
+
         if i.status.container_statuses is None: continue
 
         # This is the namespace-point of suffcient specificity to save
         # if the registry tag is running somewhere and where that is.
         pod_name = f'k8s;{context};{i.metadata.namespace};{i.metadata.name}'
-
-        if i.metadata.name == 'elton-services-syncing-transaction-job-27963550-5gx5r':
-            print("Found it")
 
         # Figure out when this pod was last wanted
         if i.status.phase in ['Pending', 'Running'] or ipbo:
@@ -75,6 +72,14 @@ def load_from_kubernetes(k8s, context=None):
             pod_age = pod_age / 60 / 60 / 24
 
         for c in i.status.container_statuses:
+            image_name = c.image
+            if image_name is None or image_name == "":
+                sys.exit("FATAL: No image for pod %s" % i.metadata.name)
+
+            digest = None
+            if c.image_id is not None and "@sha256:" in c.image_id:
+                digest = c.image_id.split('@',1)[1]
+
             ipbo = c.state.waiting is not None and \
                 c.state.waiting.reason == 'ImagePullBackOff'
 
@@ -88,39 +93,40 @@ def load_from_kubernetes(k8s, context=None):
                 c_age = datetime.now(timezone.utc) - c.state.terminated.started_at
                 c_age = c_age.total_seconds() / 60 / 60 / 24
                 if c_age > max_age:
-                    # print("Skipping %s, too old at %d days" % (c.image, c_age) )
+                    # print("Skipping %s, too old at %d days" % (image_name, c_age) )
                     too_old += 1
                     continue
 
                 # print("Container %s in pod %s is not running and is %d days old" % (c.name, i.metadata.name, c_age))
 
             count += 1
-            if c.image not in images:
-                images[c.image] = { '_phase': no_phase.copy() }
+            if image_name not in images:
+                images[image_name] = { '_phase': no_phase.copy() }
 
             ipbo = c.state.waiting is not None and \
                 c.state.waiting.reason == 'ImagePullBackOff'
 
-            images[c.image]['_phase']['ImagePullBackOff'] = ipbo
+            images[image_name]['_phase']['ImagePullBackOff'] = ipbo
 
             # If we haven't seen this container/pod combination
             # before, make a new emtpy phase summary for it.
-            if pod_name not in images[c.image]:
-                images[c.image][pod_name] = no_phase.copy()
+            if pod_name not in images[image_name]:
+                images[image_name][pod_name] = no_phase.copy()
 
-                    # The outer nesting is the image - because we're concerned with the images
-            images[c.image][pod_name][i.status.phase] = True
-            images[c.image][pod_name]['ImagePullBackOff'] = ipbo
-            images[c.image][pod_name]['_last_wanted'] = c_age
+            # The outer nesting is the image - because we're concerned with the images
+            images[image_name][pod_name][i.status.phase] = True
+            images[image_name][pod_name]['ImagePullBackOff'] = ipbo
+            images[image_name][pod_name]['_last_wanted'] = c_age
+            if digest is not None: images[image_name]['_digest'] = digest
 
-            images[c.image]['_phase'][i.status.phase] = True
+            images[image_name]['_phase'][i.status.phase] = True
 
-            if '_last_wanted' not in images[c.image] or \
-               images[c.image]['_last_wanted'] > c_age:
-                images[c.image]['_last_wanted'] = c_age
+            if '_last_wanted' not in images[image_name] or \
+               images[image_name]['_last_wanted'] > c_age:
+                images[image_name]['_last_wanted'] = c_age
 
             if i.spec.node_name is not None:
-                images[c.image][pod_name]['_node'] = i.spec.node_name
+                images[image_name][pod_name]['_node'] = i.spec.node_name
 
     print("* Found %s pods" % count)
     print("* Images until now: %d, and %d are too old" % (len(images), too_old))
