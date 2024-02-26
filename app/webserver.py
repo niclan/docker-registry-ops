@@ -196,36 +196,41 @@ def summarize(check):
     all_errors = 0
     tags = []
     lesser_tags = []
+    least_tags = []
 
     for error in check:
-        if "prod" in "=".join(error["namespaces"]):
+        namespaces = "=".join(error["namespaces"])
+        tag_info = image_info(error["tag"])
+
+        if "prod" in namespaces:
             prod_errors += 1
 
             if "ImagePullBackOff" in error["phase"]:
                 image_pull_errors += 1
                 prod_errors -= 1
-                tag_info = image_info(error["tag"])
                 if tag_info is None:
                     tags.append(f'ImagePullBackOff: {error["tag"]} (and not running anywhere)')
                 else:
                     tags.append(f'ImagePullBackOff: {error["tag"]} (but {tag_info})')
 
             elif len(error["wrongs"]) > 0:
-                tag_info = image_info(error["tag"])
                 if tag_info is None:
                     lesser_tags.append(f'{error["wrongs"]}: {error["tag"]} (and not running anywhere)')
                 else:
                     lesser_tags.append(f'{error["wrongs"]}: {error["tag"]} ({tag_info})')
 
-    for error in check:
         # "stage" or "staging"
-        if "stag" in "=".join(error["namespaces"]):
+        if "stage" in namespaces or "staging" in namespaces:
             stage_errors += 1
 
-    for error in check:
-        all_errors += 1
+        if "ImagePullBackOff" in error["phase"]:
+            error["wrongs"].append("ImagePullBackOff")
+        if tag_info is None:
+            least_tags.append(f'{error["wrongs"]}: {error["tag"]} (and not running anywhere)')
+        else:
+            least_tags.append(f'{error["wrongs"]}: {error["tag"]} ({tag_info})')
 
-    all_errors -= (prod_errors + stage_errors)
+    all_errors = len(check) - prod_errors - stage_errors
 
     if image_pull_errors > 0:
         errormsg = [ f"CRITICAL: Missing images: {image_pull_errors} ImagePullBackOff errors in prod. Otherwise: {prod_errors} image problems in prod, {stage_errors} in staging, and {all_errors} in other namespaces" ]
@@ -239,7 +244,9 @@ def summarize(check):
         return "\n".join(errormsg)
 
     if stage_errors > 0:
-        return f"WARNING: Missing images: {stage_errors} errors in stage and {all_errors} in other namespaces"
+        errormsg = [ f"WARNING: Missing images: {stage_errors} errors in stage and {all_errors} in other namespaces" ]
+        errormsg.extend(least_tags)
+        return "\n".join(errormsg)
 
     if all_errors > 0:
         return f"OK: Missing images: {all_errors} errors in non-production, non-stage namespaces"
