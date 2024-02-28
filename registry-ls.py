@@ -49,7 +49,7 @@ def main():
 
         ntags += len(tags)
         
-        print("repo_name:", f"\n{repo_name}:".join(tags))
+        print(f"repo:tag: {repo_name}:", f"\n   {repo_name}:".join(tags))
 
     print("Number of repositories: %d, tags: %d" % (num_repos, ntags))
 
