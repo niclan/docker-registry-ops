@@ -13,23 +13,62 @@
 
 import requests
 
-def json_get(url):
-    """Get URL and return json or empty list on error"""
 
-    r = requests.get(url)
+def _get_link(headers):
+    """Get URL from the Link header if rel is "next" and return it.
+    Return none if no next link is found."""
 
-    if r.status_code == 200:
-        return r.json()
+    if 'Link' not in headers:
+        return None
 
-    if r.status_code == 404:
-        return []
+    links = headers['Link'].split(',')
+    for link in links:
+        if 'rel="next"' in link:
+            return link.split('<')[1].split('>')[0]
 
-    if r.status_code == 400:
-        print("Error 400 on %s (%s), making empty return" % (url, r.text.rstrip()))
-        return []
+    return None
 
-    print("Error: %s (%s) getting %s" % (r.status_code, r.text.rstrip(), url))
-    sys.exit(1)
+
+def _json_get(url, tl_key):
+        """Get URL and return the result as a array, supporting pagination.
+        The error handling is overly terse."""
+
+        (scheme, _, host, _) = url.split('/', 3)
+
+        rooturl = "%s//%s" % (scheme, host)
+
+        r = requests.get(url)
+
+        if r.status_code == 404:
+            return []
+
+        if r.status_code == 400:
+            print("Error 400 on %s (%s), making empty return" % (url, r.text.rstrip()))
+            return []
+
+        if r.status_code != 200:
+            print("Error: %s (%s) getting %s" % (r.status_code, r.text.rstrip(), url))
+            sys.exit(1)
+
+        all_data = []
+
+        while l := _get_link(r.headers):
+            all_data.extend(r.json()[tl_key])
+            url = f"{rooturl}/{l}"
+            r = requests.get(url)
+
+            if r.status_code != 200:
+                return []
+
+        data = r.json()
+        if tl_key in data and data[tl_key] is not None:
+            all_data.extend(data[tl_key])
+
+        if r.status_code == 200:
+            return { tl_key: all_data }
+
+        print("Error: %s (%s) getting %s" % (r.status_code, r.text.rstrip(), url))
+        sys.exit(1)
     
 
 class Registry:
@@ -70,13 +109,17 @@ class Registry:
     def get_repositories(self):
         """Returns a list of repositories in the registry"""
 
-        return json_get("https://%s/v2/_catalog?n=10000" % self.registry)["repositories"]
+        j = _json_get("https://%s/v2/_catalog" % self.registry, "repositories")
+        if "repositories" not in j:
+            return []
+
+        return j["repositories"]
 
 
     def get_tags(self, repo):
         """Get all tags for a repo"""
 
-        j = json_get("https://%s/v2/%s/tags/list?n=10000" % (self.registry, repo))
+        j = _json_get("https://%s/v2/%s/tags/list" % (self.registry, repo), "tags")
         if "tags" not in j:
             return []
 
@@ -102,7 +145,7 @@ class Registry:
 
         if r.status_code == 200:
             dcd = r.headers['Docker-Content-Digest']
-            mani = json_get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag))
+            mani = _json_get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag))
             if r.status_code == 200:
                 return dcd, mani
             # The error will already have been reported in json_get so don't bother
