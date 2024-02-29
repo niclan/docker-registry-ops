@@ -12,6 +12,7 @@ import Registry
 
 def main():
     parser = argparse.ArgumentParser(description='Count number of tags in registry')
+    parser.add_argument('-d', '--digest', action='store_true', help='Show digest of tags')
     parser.add_argument('-r', '--repository', action="append",
                         help='Work on this repository instead  of all (can be repeated)')
 
@@ -25,20 +26,16 @@ def main():
     ntags = 0
     num_repos = 0
 
-    reg = Registry.Registry(args.server)
-
     try:
-        # Note, we want to make this initial call to the registry even
-        # if args.repository is set: to ensure that it resolves and
-        # works, and catch any problems here in this try/except
-        # stanza.
-        repositories = reg.get_repositories()
-    except requests.exceptions.ConnectionError as e:
+        reg = Registry.Registry(args.server)
+    except requests.exceptions.ConnectionError:
         print("Failed to connect to %s" % args.server)
         sys.exit(1)
 
     if args.repository:
         repositories = args.repository
+    else:
+        repositories = reg.get_repositories()
 
     for repo_name in repositories:
         num_repos += 1
@@ -48,8 +45,16 @@ def main():
             continue
 
         ntags += len(tags)
-        
-        print(f"repo:tag: {repo_name}:", f"\n   {repo_name}:".join(tags))
+
+        for tag in tags:
+            if args.digest:
+                digest, manifest = reg.get_manifest(repo_name, tag)
+                if digest == '':
+                    print(f"{repo_name}:{tag} (no digest, tag probably corrupted)")
+                else:
+                    print(f"{repo_name}:{tag}@{digest}")
+            else:
+                print(f"{repo_name}:{tag}")
 
     print("Number of repositories: %d, tags: %d" % (num_repos, ntags))
 
