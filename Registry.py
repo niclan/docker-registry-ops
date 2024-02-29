@@ -30,11 +30,18 @@ def _get_link(headers):
 
 
 def _json_get(url, tl_key):
-        """Get URL and return the result as a array, supporting pagination.
-        The error handling is overly terse."""
+        """Get URL and return the result as a array, supporting
+        pagination.
+
+        The fun way to do this is to return a itterable instead of the
+        list.  To make it usefull the caller must also do a itterable
+        in turn and then they could keep calling each other.
+
+        For non-paginating requests tl_key may be None, and in this
+        case the whole document is returned.
+        """
 
         (scheme, _, host, _) = url.split('/', 3)
-
         rooturl = "%s//%s" % (scheme, host)
 
         r = requests.get(url)
@@ -47,8 +54,10 @@ def _json_get(url, tl_key):
             return []
 
         if r.status_code != 200:
-            print("Error: %s (%s) getting %s" % (r.status_code, r.text.rstrip(), url))
-            sys.exit(1)
+            sys.exit("Error: %s getting %s" % (r.status_code, url))
+
+        if tl_key is None:
+            return r.json()
 
         all_data = []
 
@@ -58,25 +67,31 @@ def _json_get(url, tl_key):
             r = requests.get(url)
 
             if r.status_code != 200:
-                return []
+                print("Unexpected error in the middle of paginated request: %s getting %s" % (r.status_code, url))
+                sys.exit(1)
 
         data = r.json()
+
         if tl_key in data and data[tl_key] is not None:
             all_data.extend(data[tl_key])
 
-        if r.status_code == 200:
-            return { tl_key: all_data }
-
-        print("Error: %s (%s) getting %s" % (r.status_code, r.text.rstrip(), url))
-        sys.exit(1)
+        return { tl_key: all_data }
     
 
 class Registry:
+
     """Class to handle the docker registry API.
 
     Example:
 
-       reg = Registry("registry.example.com", true)
+       import Registry
+       import sys
+
+       try:
+          reg = Registry("registry.example.com", true)
+       except:
+          sys.exit("Failed to connect to registry or registry is not version 2")
+
        repos = reg.get_repositories()
        for repo_name in repos:
            print("Repo: %s" % repo_name)
@@ -105,9 +120,16 @@ class Registry:
         self.debug = False
         self.verbose = False
 
+        # Check that the registry is there and version 2
+        r = requests.get("https://%s/v2" % self.registry)
+        if r.status_code == 200: return None
+
+        r.raise_for_status()
+
 
     def get_repositories(self):
-        """Returns a list of repositories in the registry"""
+        """Returns a list of repositories in the registry.  The fun
+        way to do this is to return a itterable instead of the list."""
 
         j = _json_get("https://%s/v2/_catalog" % self.registry, "repositories")
         if "repositories" not in j:
@@ -117,6 +139,7 @@ class Registry:
 
 
     def get_tags(self, repo):
+
         """Get all tags for a repo"""
 
         j = _json_get("https://%s/v2/%s/tags/list" % (self.registry, repo), "tags")
@@ -145,7 +168,7 @@ class Registry:
 
         if r.status_code == 200:
             dcd = r.headers['Docker-Content-Digest']
-            mani = _json_get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag))
+            mani = _json_get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag), None)
             if r.status_code == 200:
                 return dcd, mani
             # The error will already have been reported in json_get so don't bother
