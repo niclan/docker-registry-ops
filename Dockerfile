@@ -9,7 +9,7 @@ RUN apt update && apt -y dist-upgrade
 COPY requirements.txt /
 RUN pip install --upgrade pip; pip install -r /requirements.txt; rm /requirements.txt
 # Install our code
-RUN mkdir -p /app/reports; mkdir -p /lib; mkdir -p /bin
+RUN mkdir -p /app/reports /lib /bin
 RUN chown -R www-data:www-data /app
 # Can't run as www-data if we want skaffold to copy the files in live. Otherwise
 # we should run as www-data
