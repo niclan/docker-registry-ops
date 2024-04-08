@@ -144,6 +144,33 @@ wether it's in use or not.
 
 The error list is saved in both .json and CSV format.
 
+### `registry-ls.py`
+
+This is a simple program to list the tags in a repository.
+
+```
+usage: registry-ls.py [-h] [-d] [-r REPOSITORY] server
+
+Count number of tags in registry
+
+positional arguments:
+  server                Registry server
+
+options:
+  -h, --help            show this help message and exit
+  -d, --digest          Show digest of tags
+  -r REPOSITORY, --repository REPOSITORY
+                        Work on this repository instead of all (can be repeated)
+```
+
+It can be combined with other shell utilities to do e.g. get a list
+how many tags there are pr. repository:
+
+```
+./registry-ls.py docker.vgnett.no | cut -d: -f 1 | uniq -c | sort -n >tags-pr-repo.txt
+```
+
+
 ### registry fixer
 
 To be written. Would read the output from the registry-checker and do
