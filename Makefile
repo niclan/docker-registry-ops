@@ -14,7 +14,7 @@ default:
 	@echo
 	@echo "These deploys to kubernetes:"
 	@echo "  dev        - Make secret file and run skaffold dev"
-	@echo "  stage      - Make secret file and run skaffold run -p stage"
+	@echo "  staging    - Make secret file and run skaffold run -p staging"
 	@echo "  prod       - Make secret file and run skaffold run -p prod"
 	@echo "  secret     - Create the secret file for the vault"
 	@echo
