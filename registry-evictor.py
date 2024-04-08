@@ -153,6 +153,8 @@ def delete_most_manifests(reg, repo_name):
 
     digests_to_keep = []
 
+    # Sometimes multiple tags have the same digest, so we need to keep
+    # off all of those tags.
     for tag in tags_to_keep:
         digests_to_keep.append(repos[repo_name][tag]['digest'])
 
