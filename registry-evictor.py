@@ -151,11 +151,20 @@ def delete_most_manifests(reg, repo_name):
 
     if pause: any_key = input("Press enter to proceed")
 
+    digests_to_keep = []
+
+    for tag in tags_to_keep:
+        digests_to_keep.append(repos[repo_name][tag]['digest'])
+
     # Delete the tags, except the ones we want to keep
     for tag in tag_bytime:
         repo_tag = f'{repo_name}:{tag}'
         if tag in tags_to_keep:
-            print("+ Keep %s" % repo_tag)
+            print("+ Keep by tag: %s" % repo_tag)
+            continue
+
+        if repos[repo_name][tag]['digest'] in digests_to_keep:
+            print("+ Keep by digest: %s" % repo_tag)
             continue
         
         print("? %s: %s" % (tag, repos[repo_name][tag]))

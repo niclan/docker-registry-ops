@@ -32,7 +32,11 @@ from kubernetes.client import configuration
 from kubernetes.client.rest import ApiException
 from kubernetes.config.config_exception import ConfigException
 
+no_phase = { 'Running': False, 'Pending': False, 'Succeeded': False, \
+             'Failed':  False, 'Unknown': False, 'ImagePullBackOff': False }
+
 def load_from_kubernetes(k8s, context=None):
+
     """Load image list from all the pods in all the namespaces in the
     given cluster.  The images and some status information are saved
     in the global images dictionary.
@@ -48,8 +52,6 @@ def load_from_kubernetes(k8s, context=None):
     #
     # ImagePullBackOff is not a kubernetes phase, but for the registry-checker it's
     # interesting
-    no_phase = { 'Running': False, 'Pending': False, 'Succeeded': False, \
-                 'Failed':  False, 'Unknown': False, 'ImagePullBackOff': False }
     count = 0
 
     # Each container can be the origin of several different pods.  A
@@ -129,7 +131,42 @@ def load_from_kubernetes(k8s, context=None):
                 images[image_name][pod_name]['_node'] = i.spec.node_name
 
     print("* Found %s pods" % count)
-    print("* Images until now: %d, and %d are too old" % (len(images), too_old))
+
+
+def load_cronjobs_from_kubernetes(k8s, context=None):
+    """Load image list from the cronjob specs in all the namespaces in
+    the given cluster.
+    """
+
+    count = 0
+
+    try:
+        cronjobs = k8s.list_cron_job_for_all_namespaces()
+    except ApiException as e:
+        if e.status == 404:
+            print("* No cronjobs found")
+            return
+        if e.status == 403:
+            sys.exit("\nNo access to cronjobs. Terminating.")
+        sys.exit("API ERROR: %s" % e)
+
+    for i in cronjobs.items:
+
+        for c in i.spec.job_template.spec.template.spec.containers:
+            count += 1
+            image_name = c.image
+            if image_name is None or image_name == "":
+                sys.exit("FATAL: No image for cronjob %s" % i.metadata.name)
+
+            if image_name not in images:
+                images[image_name] = { '_cronjob': True,
+                                       '_last_wanted': 0,
+                                       '_phase': no_phase.copy() }
+            else:
+                images[image_name]['_cronjob'] = True
+                images[image_name]['_last_wanted'] = 0
+                
+    print("* Found %s cronjobs" % count)
 
 
 def main():
@@ -158,20 +195,24 @@ def main():
 
     if contexts[0]['name'] == 'in-cluster':
         k8s = client.CoreV1Api()
+        k8s_batch = client.BatchV1Api()
 
         print("Running in cluster, only checking it")
         load_from_kubernetes(k8s, context='in-cluster')
+        load_cronjobs_from_kubernetes(k8s_batch)
+        print("= Images until now: %d, and %d are too old" % (len(images), too_old))
 
     else:
         contexts = [context['name'] for context in contexts]
 
         print("Finding images in available contexts")
         for context in contexts:
+            print("Loading from %s" % context)
+            config.load_kube_config(context=context)
+            k8s = client.CoreV1Api()
+            k8s_batch = client.BatchV1beta1Api()
+
             try:
-                print("Loading from %s" % context)
-
-                k8s = client.CoreV1Api(api_client=config.new_client_from_config(context=context))
-
                 load_from_kubernetes(k8s, context=context)
             except ApiException as e:
                 print()
@@ -179,6 +220,9 @@ def main():
                 print()
                 print('API ERROR MESSAGE: """%s"""' % e)
                 sys.exit(1)
+
+            load_cronjobs_from_kubernetes(k8s_batch, context=context)
+            print("= Images until now: %d, and %d are too old" % (len(images), too_old))
 
     savedir = os.environ.get('REPORTDIR', '.')
 
