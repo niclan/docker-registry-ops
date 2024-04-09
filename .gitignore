@@ -1,6 +1,7 @@
 # Emacs stuff
 *~
 .emacs*
+logs/
 
 # Build and run artifacts for this project
 images.json
