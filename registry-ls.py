@@ -11,7 +11,7 @@ import argparse
 import Registry
 
 def main():
-    parser = argparse.ArgumentParser(description='Count number of tags in registry')
+    parser = argparse.ArgumentParser(description='List tags in registry')
     parser.add_argument('-d', '--digest', action='store_true', help='Show digest of tags')
     parser.add_argument('-r', '--repository', action="append",
                         help='Work on this repository instead  of all (can be repeated)')
