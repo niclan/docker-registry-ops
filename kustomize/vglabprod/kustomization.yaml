@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ops-production
+nameSuffix: "-prod"
+commonLabels:
+  app: docker-registry-checker-prod
+
+resources:
+- ../base
+
+patches:
+- path: fix-rb.yaml
+- path: fix-deployment.yaml
+  target:
+    kind: Deployment
+- path: fix-service.yaml
+  target:
+    kind: Service
+- path: fix-ingress.yaml
+  target:
+    kind: Ingress
+
+

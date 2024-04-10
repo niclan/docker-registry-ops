@@ -1,0 +1,12 @@
+- op: add
+  path: /metadata/annotations
+  value: { nginx.ingress.kubernetes.io/whitelist-source-range: 195.88.54.0/23,
+           nginx.ingress.kubernetes.io/ssl-redirect: "true",
+           nginx.ingress.kubernetes.io/force-ssl-redirect: "true",
+           cert-manager.io/cluster-issuer: letsencrypt-prod }
+- op: replace
+  path: /spec/rules/0/host
+  value: docker-registry-checker.vg-lab-pro-1.eks.schibsted.io
+- op: replace
+  path: /spec/rules/0/http/paths/0/backend/service/name
+  value: docker-registry-checker-prod
