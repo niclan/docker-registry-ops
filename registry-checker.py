@@ -93,14 +93,12 @@ def examine_by_report(image_report, only=None):
 
         digest, _, _ = reg.get_manifest(repo, tag)
 
+        wrongs = []
         # We used to check the manifest too here, but not all kinds of images have a manifest.
-        if digest == '':
-            wrongs = []
-            if digest == '':
-                wrongs.append("no digest")
-            if image_report[path]['_phase']['ImagePullBackOff']:
-                wrongs.append("ImagePullBackOff")
+        if digest == '': wrongs.append("no digest")
 
+        if image_report[path]['_phase']['ImagePullBackOff']:
+            wrongs.append("ImagePullBackOff")
             namespaces = [ ";".join(ns.split(";")[1:3])
                            for ns in image_report[path]
                              if not ns.startswith("_") and
@@ -124,6 +122,7 @@ def examine_by_report(image_report, only=None):
             namespaces = list(set(namespaces))
             namespaces.sort()
 
+        if len(wrongs) > 0:
             # NOTE! All errors that goes to the same file must have the
             # same fields, for the sake of the CSV writer.
             errors.append({ 'tag': path, 'wrongs': wrongs, 'namespaces': namespaces, 'phase': phases })
