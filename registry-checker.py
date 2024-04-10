@@ -94,6 +94,8 @@ def examine_by_report(image_report, only=None):
         digest, _, _ = reg.get_manifest(repo, tag)
 
         wrongs = []
+        namespaces = list()
+        phases = list()
         # We used to check the manifest too here, but not all kinds of images have a manifest.
         if digest == '': wrongs.append("no digest")
 
