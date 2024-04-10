@@ -41,32 +41,6 @@ used_repo = {}
 used_repo_tag = {}
 
 
-def get_manifest_health(repo, tag):
-    """Get the manifest for a tag. This requires two calls to the
-    registry.  The first one gets the digest, the second one gets the
-    manifest itself.  The digest is needed to delete the manifest.
-
-    This procedure variation is to check the health of the tag.  We
-    have many tags w/o manifests and/or registries without (healthy)
-    tags.
-
-    """
-
-    result = { 'digest': {}, 'manifest': {} }
-
-    d = requests.get("https://%s/v2/%s/manifests/%s" % (registry, repo, tag),
-                     headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json," \
-                              "application/vnd.docker.distribution.manifest.list.v2+json," \
-                              "application/vnd.oci.image.index.v1+json," \
-                              "application/vnd.docker.distribution.manifest.v1+prettyjws," \
-                              "application/json," \
-                              "application/vnd.oci.image.manifest.v1+json"})
-
-    m = requests.get("https://%s/v2/%s/manifests/%s" % (registry, repo, tag))
-
-    return d, m
-
-
 def find_image_by_repo(repo_name):
     """Find all the images in the report that are from a given repo"""
 
@@ -76,6 +50,8 @@ def find_image_by_repo(repo_name):
 
 def examine_by_report(image_report, only=None):
     regPrefix = f'{registry}/'
+
+    reg = Registry(registry)
 
     errors = []
 
@@ -115,15 +91,13 @@ def examine_by_report(image_report, only=None):
         else:
             (repo, tag) = repo_tag.split(":",1)
 
-        (digest, manifest) = get_manifest_health(repo, tag)
+        digest, _, _ = reg.get_manifest(repo, tag)
 
-        if digest.status_code != 200 or manifest.status_code != 200:
-
+        # We used to check the manifest too here, but not all kinds of images have a manifest.
+        if digest == '':
             wrongs = []
-            if digest.status_code != 200:
+            if digest == '':
                 wrongs.append("no digest")
-            if manifest.status_code != 200:
-                wrongs.append("no manifest")
             if image_report[path]['_phase']['ImagePullBackOff']:
                 wrongs.append("ImagePullBackOff")
 
