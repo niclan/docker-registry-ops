@@ -163,8 +163,13 @@ class Registry:
         """
 
         r = requests.get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag), \
-                         headers={"Accept": \
-                                  "application/vnd.docker.distribution.manifest.v2+json"})
+                         # So many kinds of manifests, so little time
+                         headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json," \
+                                  "application/vnd.docker.distribution.manifest.list.v2+json," \
+                                  "application/vnd.oci.image.index.v1+json," \
+                                  "application/vnd.docker.distribution.manifest.v1+prettyjws," \
+                                  "application/json," \
+                                  "application/vnd.oci.image.manifest.v1+json"})
 
         if r.status_code == 200:
             dcd = r.headers['Docker-Content-Digest']
