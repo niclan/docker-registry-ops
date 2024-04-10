@@ -48,11 +48,11 @@ def main():
 
         for tag in tags:
             if args.digest:
-                digest, manifest = reg.get_manifest(repo_name, tag)
+                digest, manifest, mtype = reg.get_manifest(repo_name, tag)
                 if digest == '':
                     print(f"{repo_name}:{tag} (no digest, tag probably corrupted)")
                 else:
-                    print(f"{repo_name}:{tag}@{digest}")
+                    print(f"{repo_name}:{tag}@{digest} ({mtype})")
             else:
                 print(f"{repo_name}:{tag}")
 

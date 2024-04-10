@@ -62,3 +62,16 @@ profiles:
       value:
         # The Makefile forces git commit before deploy
         gitCommit: {}
+
+- name: vglabprod
+  patches:
+    - op: replace
+      path: /manifests/kustomize/paths/0
+      value: kustomize/vglabprod
+    - op: replace
+      path: /deploy/kubectl/defaultNamespace
+      value: ops-production
+    - op: add
+      path: /build/tagPolicy
+      value:
+        gitCommit: {}

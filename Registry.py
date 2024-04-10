@@ -101,7 +101,7 @@ class Registry:
            for tag in tags:
                print("  Tag: %s" % tag)
 
-               digest, manifest = reg.get_manifest(repo_name, tag)
+               digest, manifest, mimetype = reg.get_manifest(repo_name, tag)
                print("    Digest: %s" % digest)
                print("    Manifest: %s" % manifest)
     """
@@ -155,11 +155,15 @@ class Registry:
         gets the manifest itself.  The digest will be needed if you
         want to delete the manifest.
 
-        Return a tuple: digest, { manifest }
+        Return a tuple: digest, { manifest }, mimetype
+
+        The "mimetype" is the Content-Type of the manifest, see the
+        Accept header in the get call.
 
         On error returns: "", {}
 
         Bugs: No error information escapes from this function.
+
         """
 
         r = requests.get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag), \
@@ -173,13 +177,14 @@ class Registry:
 
         if r.status_code == 200:
             dcd = r.headers['Docker-Content-Digest']
+            dtype = r.headers['Content-Type']
             mani = _json_get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag), None)
             if r.status_code == 200:
-                return dcd, mani
+                return dcd, mani, dtype
             # The error will already have been reported in json_get so don't bother
             # here
 
-        return "", {}
+        return "", {}, ""
 
 
     ## Delete functions
@@ -197,7 +202,7 @@ class Registry:
                 tags = reg.get_tags(repo_name)
 
                 for tag in tags:
-                    digest, manifest = reg.get_manifest(repo_name, tag)
+                    digest, manifest, mimetype = reg.get_manifest(repo_name, tag)
                     if digest == "":
                         print("Error getting manifest for %s:%s" % (repo_name, tag))
                         continue
