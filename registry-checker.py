@@ -223,6 +223,7 @@ def main():
                         help='Only check images this many days or younger, default is 31. 0 means all images')
     parser.add_argument('-s', '--spinner', action="store", type=int, default=None,
                         help='Select what kind of progress spinner you prefer, default random')
+    parser.add_argument('-a', '--always', action="store_true", default=False, help='Even if now errors Always write report files (default is to only write if errors are found)')
     parser.add_argument('server', help='Registry server to check')
     args = parser.parse_args()
 
@@ -254,7 +255,7 @@ def main():
     if len(errors) == 0:
         print("Nothing wrong here!")
 
-    else:
+    if len(errors) > 0 or args.always:
 
         if savedir != '.':
             print("Saving reports to %s" % savedir)

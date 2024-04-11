@@ -71,7 +71,7 @@ class RegistryHealthHTTPD(BaseHTTPRequestHandler):
 
         Detect if there is a error or not by looking for the string
         "ERROR" in the response.  If we find it we return 503.  If we
-        don't find the path or no content (Null) is returned by the
+        don't find the path or no content (None) is returned by the
         handler we return 404. Otherwise we return 200.
 
         Some responses are for a nagios plugin.  The words "OK",
@@ -279,6 +279,30 @@ def check_registry(request, path, query):
     return summarize(check)
 
 
+def cat(request, path, query):
+    """Endpoint to cat one of three files. None return generates 404"""
+
+    if path == "/report.json":
+        try:
+            return Path(f"{report_dir}/registry-check.json").read_text()
+        except FileNotFoundError:
+            return None
+
+    if path == "/report.csv":
+        try:
+            return Path(f"{report_dir}/registry-check.csv").read_text()
+        except FileNotFoundError:
+            return None
+
+    if path == "/images.json":
+        try:
+            return Path(f"{report_dir}/images.json").read_text()
+        except FileNotFoundError:
+            return None
+
+    return None
+
+
 def get_uptime():
     """Get pod uptime from kubernetes"""
 
@@ -326,6 +350,9 @@ def main():
     router.setup("/", ok)
     router.setup("/health", health_check)
     router.setup("/nagios_check_registry", check_registry)
+    router.setup("/report.csv", cat)
+    router.setup("/report.json", cat)
+    router.setup("/images.json", cat)
 
     web_server = HTTPServer(('', args.port), RegistryHealthHTTPD)
     print("Server started on http://%s:%s" %

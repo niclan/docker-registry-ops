@@ -2,5 +2,4 @@
 
 # Both these are needed to get a complete check
 k8s-inventory.py
-registry-checker.py $REGISTRY
-
+registry-checker.py -a $REGISTRY
