@@ -257,6 +257,9 @@ def main():
 
     if len(errors) > 0 or args.always:
 
+        if len(errors) == 0:
+            errors.append({ 'errors': 'none found' })
+
         if savedir != '.':
             print("Saving reports to %s" % savedir)
             dirname = savedir
