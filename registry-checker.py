@@ -257,9 +257,6 @@ def main():
 
     if len(errors) > 0 or args.always:
 
-        if len(errors) == 0:
-            errors.append({ 'errors': 'none found' })
-
         if savedir != '.':
             print("Saving reports to %s" % savedir)
             dirname = savedir
@@ -272,6 +269,9 @@ def main():
         with open("registry-check.json", "w") as f:
             f.write(json.dumps(errors, indent=2, sort_keys=True))
         print("Wrote report to %s/%s" % (dirname, "registry-check.json"))
+
+        if len(errors) == 0:
+            errors.append({ 'errors': 'none' })
 
         with open("registry-check.csv", "w") as f:
             w = csv.DictWriter(f, errors[0].keys())
