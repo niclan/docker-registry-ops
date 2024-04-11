@@ -76,7 +76,7 @@ profiles:
       value:
         gitCommit: {}
 
-- name: vglabprod
+- name: vgopsprod
   patches:
     - op: replace
       path: /manifests/kustomize/paths/0
