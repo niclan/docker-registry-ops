@@ -57,7 +57,7 @@ def load_from_kubernetes(k8s, context=None):
     # Each container can be the origin of several different pods.  A
     # long running pod, a cronJob pod etc.  Therefore the outer key is
     # the container since we're all about the container images really.
-    
+
     for i in k8s.list_pod_for_all_namespaces(watch=False).items:
 
         if i.status.container_statuses is None: continue
@@ -65,6 +65,23 @@ def load_from_kubernetes(k8s, context=None):
         # This is the namespace-point of suffcient specificity to save
         # if the registry tag is running somewhere and where that is.
         pod_name = f'k8s;{context};{i.metadata.namespace};{i.metadata.name}'
+
+        pod_images = [c.image for c in i.spec.containers]
+
+        # A image can be referenced as all of these things in various places:
+        # - docker.vgnett.no/docker-registry-checker:50575d7@sha256:dadd36f816c87663fee16ff8f4e265e3feda064f7b2faa6426cb0b32c5ae0d0b
+        # - docker.vgnett.no/docker-registry-checker@sha256:dadd36f816c87663fee16ff8f4e265e3feda064f7b2faa6426cb0b32c5ae0d0b
+        # - docker.vgnett.no/docker-registry-checker:50575d7
+        # - sha256:dadd36f816c87663fee16ff8f4e265e3feda064f7b2faa6426cb0b32c5ae0d0b
+        #
+        # The digest is fairly unique and we need to be able to find
+        # registry:tag from the sha256-digit.
+        image_by_digest = {}
+
+        for im in pod_images:
+            if "@" in im:
+                ima, digest = im.split('@')
+                image_by_digest[digest] = ima
 
         # Figure out when this pod was last wanted
         if i.status.phase in ['Pending', 'Running'] or ipbo:
@@ -74,13 +91,34 @@ def load_from_kubernetes(k8s, context=None):
             pod_age = pod_age / 60 / 60 / 24
 
         for c in i.status.container_statuses:
-            image_name = c.image
-            if image_name is None or image_name == "":
-                sys.exit("FATAL: No image for pod %s" % i.metadata.name)
-
+            # Figuring out what the registry/repository:tag format
+            # without the digest is is a bit of a circus act. So here
+            # are some heurstics to find the right one.
             digest = None
-            if c.image_id is not None and "@sha256:" in c.image_id:
-                digest = c.image_id.split('@',1)[1]
+
+            if "/" in c.image:
+                # If there is a registry name in the image name, use that
+                image_name = c.image
+            else:
+                # This tends to be in registry/repository@digest
+                # format which we don't like very much because the tag
+                # format is most common in input to kubernetes and is
+                # needed for pushing.  The digest format can be used
+                # for pull but not push.
+                image_name = c.image_id
+
+            if image_name is None or image_name == "":
+                # This happened once on a fluke, just ignore it if it happens
+                print("No image_name for %s" % pod_name)
+                next
+
+            # Turns out there is a digest as well
+            if "@" in image_name and len(image_by_digest) > 0:
+                digest = image_name.split("@")[1]
+                image_name = image_by_digest.get(digest, image_name)
+
+            if "@" in image_name and len(pod_images) == 1:
+                image_name = pod_images[0]
 
             ipbo = c.state.waiting is not None and \
                 c.state.waiting.reason == 'ImagePullBackOff'
@@ -90,8 +128,9 @@ def load_from_kubernetes(k8s, context=None):
             if c.state.running is not None:
                 c_age = 0 # now
             elif pod_age > 0 and c.state.terminated is not None:
-                # Get the launch time of the container if it's terminated,
-                # and then ignore it if it's older than max_age
+                # Get the launch time of the container if it's
+                # terminated, and then ignore it if it's older than
+                # max_age
                 c_age = datetime.now(timezone.utc) - c.state.terminated.started_at
                 c_age = c_age.total_seconds() / 60 / 60 / 24
                 if c_age > max_age:
@@ -115,7 +154,8 @@ def load_from_kubernetes(k8s, context=None):
             if pod_name not in images[image_name]:
                 images[image_name][pod_name] = no_phase.copy()
 
-            # The outer nesting is the image - because we're concerned with the images
+            # The outer nesting is the image - because we're concerned
+            # with the images
             images[image_name][pod_name][i.status.phase] = True
             images[image_name][pod_name]['ImagePullBackOff'] = ipbo
             images[image_name][pod_name]['_last_wanted'] = c_age
@@ -173,25 +213,35 @@ def main():
     parser = argparse.ArgumentParser(description='Collect docker image inventory from kubernetes')
     parser.add_argument('-a', '--age', action='store', type=int, default=31, \
                         help='Only inlucde images younger than this many days, default is 31')
+    parser.add_argument('-c', '--context', action='append', help='Check this context (can be repeated)')
     args = parser.parse_args()
 
     global max_age, too_old
     max_age = args.age
     too_old = 0
 
-    try:
-        contexts, active_context = config.list_kube_config_contexts()
-        print("Loaded contexts from kube-config file")
-    except ConfigException as e:
+    print("Collecting images from kubernetes %s" % args.context)
+
+    contexts = []
+
+    if args.context:
+        for c in args.context:
+            contexts.append({ 'name': c })
+
+    else:
+
         try:
-            config.load_incluster_config()
-            contexts = [ { 'name': 'in-cluster' } ]
+            contexts, active_context = config.list_kube_config_contexts()
+            print("Loaded contexts from kube-config file")
         except ConfigException as e:
-            sys.exit("Cannot load kubernetes configuration: %s" % e)
+            try:
+                config.load_incluster_config()
+                contexts = [ { 'name': 'in-cluster' } ]
+            except ConfigException as e:
+                sys.exit("Cannot load kubernetes configuration: %s" % e)
 
     if not contexts:
-        print("Cannot find any context in kube-config file.")
-        return
+        sys.exit("Cannot find any contexts? Exiting.")
 
     if contexts[0]['name'] == 'in-cluster':
         k8s = client.CoreV1Api()
