@@ -94,8 +94,6 @@ def examine_by_report(image_report, only=None):
         digest, _, _ = reg.get_manifest(repo, tag)
 
         wrongs = []
-        namespaces = list()
-        phases = list()
         # We used to check the manifest too here, but not all kinds of images have a manifest.
         if digest == '': wrongs.append("no digest")
 
@@ -103,6 +101,7 @@ def examine_by_report(image_report, only=None):
             wrongs.append("ImagePullBackOff")
 
         if len(wrongs) > 0:
+            # We have a problem with this image, let's see where it's used
             namespaces = [ ";".join(ns.split(";")[1:3])
                            for ns in image_report[path]
                              if not ns.startswith("_") and
