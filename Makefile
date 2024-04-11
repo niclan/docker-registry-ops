@@ -62,3 +62,7 @@ prod:	secret
 vglabprod:
 	@if [ -n "$(PORCELAIN)" ]; then echo "Commit everything before a production push, aborting"; exit 1; fi
 	skaffold run -p vglabprod
+
+vgopsprod:
+	@if [ -n "$(PORCELAIN)" ]; then echo "Commit everything before a production push, aborting"; exit 1; fi
+	skaffold run -p vgopsprod

@@ -75,3 +75,16 @@ profiles:
       path: /build/tagPolicy
       value:
         gitCommit: {}
+
+- name: vglabprod
+  patches:
+    - op: replace
+      path: /manifests/kustomize/paths/0
+      value: kustomize/vgopsprod
+    - op: replace
+      path: /deploy/kubectl/defaultNamespace
+      value: ops-production
+    - op: add
+      path: /build/tagPolicy
+      value:
+        gitCommit: {}
