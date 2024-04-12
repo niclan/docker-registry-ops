@@ -2,6 +2,8 @@
 #
 # (C) 2024, Nicolai Langfeldt, Schibsted Products and Technology
 #
+# List tags in a docker registry.
+#
 
 import sys
 import socket
@@ -28,6 +30,7 @@ def main():
 
     try:
         reg = Registry.Registry(args.server)
+
     except requests.exceptions.ConnectionError:
         print("Failed to connect to %s" % args.server)
         sys.exit(1)

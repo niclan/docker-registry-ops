@@ -8,7 +8,8 @@ import sys
 import random
 
 class Spinner:
-    """Spinner to show progress.  Show nothing if we're not on a terminal.
+    """Spinner to show progress.  Show nothing if we're not in a
+    terminal.
 
     By default print the spinner character and backspace to so that
     new output on the line will overwrite the spinner character.

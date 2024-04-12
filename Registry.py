@@ -33,9 +33,17 @@ def _json_get(url, tl_key):
         """Get URL and return the result as a array, supporting
         pagination.
 
+        tl_key is the top level key in the json document, this is
+        needed to easily know what to extend as the pages are
+        retrieved.
+
         The fun way to do this is to return a itterable instead of the
         list.  To make it usefull the caller must also do a itterable
         in turn and then they could keep calling each other.
+
+        But on the other hand, returning a itterable will result in
+        keeping the network connection open for a longer time placing
+        unneeded load on the server.  So maybe not.
 
         For non-paginating requests tl_key may be None, and in this
         case the whole document is returned.
@@ -50,11 +58,13 @@ def _json_get(url, tl_key):
             return []
 
         if r.status_code == 400:
-            print("Error 400 on %s (%s), making empty return" % (url, r.text.rstrip()))
+            print("Error 400 on %s (%s), making empty return" % (url, r.text.rstrip()),
+                  file=sys.stderr)
             return []
 
         if r.status_code != 200:
-            sys.exit("Error: %s getting %s" % (r.status_code, url))
+            sys.exit("Error: %s getting %s" % (r.status_code, url),
+                     file=sys.stderr)
 
         if tl_key is None:
             return r.json()
@@ -67,7 +77,9 @@ def _json_get(url, tl_key):
             r = requests.get(url)
 
             if r.status_code != 200:
-                print("Unexpected error in the middle of paginated request: %s getting %s" % (r.status_code, url))
+                print("Unexpected error in the middle of paginated request: %s getting %s" %
+                      (r.status_code, url),
+                      file=sys.stderr)
                 sys.exit(1)
 
         data = r.json()
@@ -79,7 +91,6 @@ def _json_get(url, tl_key):
     
 
 class Registry:
-
     """Class to handle the docker registry API.
 
     Example:
@@ -88,12 +99,11 @@ class Registry:
        import sys
 
        try:
-          reg = Registry("registry.example.com", true)
+          reg = Registry.Registry("registry.example.com", true)
        except:
           sys.exit("Failed to connect to registry or registry is not version 2")
 
-       repos = reg.get_repositories()
-       for repo_name in repos:
+       for repo_name in reg.get_repositories():
            print("Repo: %s" % repo_name)
 
            tags = reg.get_tags(repo_name)
@@ -103,7 +113,7 @@ class Registry:
 
                digest, manifest, mimetype = reg.get_manifest(repo_name, tag)
                print("    Digest: %s" % digest)
-               print("    Manifest: %s" % manifest)
+               print("    Image type: %s" % mimetype)
     """
 
     def __init__(self, registry, do_delete = False):
@@ -128,8 +138,8 @@ class Registry:
 
 
     def get_repositories(self):
-        """Returns a list of repositories in the registry.  The fun
-        way to do this is to return a itterable instead of the list."""
+        """Returns a list of repositories in the registry."""
+
 
         j = _json_get("https://%s/v2/_catalog" % self.registry, "repositories")
         if "repositories" not in j:
@@ -139,7 +149,6 @@ class Registry:
 
 
     def get_tags(self, repo):
-
         """Get all tags for a repo"""
 
         j = _json_get("https://%s/v2/%s/tags/list" % (self.registry, repo), "tags")
@@ -158,16 +167,20 @@ class Registry:
         Return a tuple: digest, { manifest }, mimetype
 
         The "mimetype" is the Content-Type of the manifest, see the
-        Accept header in the get call.
+        Accept header in the get call. This shows what kind of image
+        it is.
 
-        On error returns: "", {}
+        On error returns: "", {}, ""
 
-        Bugs: No error information escapes from this function.
+        Bugs: No information about any error escapes from this
+        function, but _json_get will print a error message.
 
         """
 
+        # The list of mime types was hard to get. I found it in a
+        # stackexchange posting where the author had found it by
+        # proxying the docker requests and looking at the headers.
         r = requests.get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag), \
-                         # So many kinds of manifests, so little time
                          headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json," \
                                   "application/vnd.docker.distribution.manifest.list.v2+json," \
                                   "application/vnd.oci.image.index.v1+json," \
@@ -181,7 +194,7 @@ class Registry:
             mani = _json_get("https://%s/v2/%s/manifests/%s" % (self.registry, repo, tag), None)
             if r.status_code == 200:
                 return dcd, mani, dtype
-            # The error will already have been reported in json_get so don't bother
+            # The error will already have been printed in json_get so don't bother
             # here
 
         return "", {}, ""
@@ -194,9 +207,10 @@ class Registry:
         does not support delting by repository:tag only by
         repository:digest.
 
-        Silly example that will delete your whole registry:
+        Silly (and untested!) example that will delete your whole
+        registry:
         
-            reg = Registry("registry.example.com", true)
+            reg = Registry.Registry("registry.example.com", true)
             repos = reg.get_repositories()
             for repo_name in repos:
                 tags = reg.get_tags(repo_name)
@@ -205,9 +219,10 @@ class Registry:
                     digest, manifest, mimetype = reg.get_manifest(repo_name, tag)
                     if digest == "":
                         print("Error getting manifest for %s:%s" % (repo_name, tag))
-                        continue
+                        next
 
                     reg.delete_manifest(repo_name, digest)
+
         """
 
         if not self.do_delete:

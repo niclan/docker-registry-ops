@@ -282,19 +282,19 @@ def check_registry(request, path, query):
 def cat(request, path, query):
     """Endpoint to cat one of three files. None return generates 404"""
 
-    if path == "/report.json":
+    if path == "/_report.json":
         try:
             return Path(f"{report_dir}/registry-check.json").read_text()
         except FileNotFoundError:
             return None
 
-    if path == "/report.csv":
+    if path == "/_report.csv":
         try:
             return Path(f"{report_dir}/registry-check.csv").read_text()
         except FileNotFoundError:
             return None
 
-    if path == "/images.json":
+    if path == "/_images.json":
         try:
             return Path(f"{report_dir}/images.json").read_text()
         except FileNotFoundError:
@@ -348,11 +348,16 @@ def main():
     global router
     router = Router()
     router.setup("/", ok)
-    router.setup("/health", health_check)
+    # There is a convention that endpoints starting with _ are
+    # considered internal and not for public consumption so that a
+    # ingress controller can apply a ACL to URLs matching ^/_
+    router.setup("/_health", health_check)
+    router.setup("/_nagios_check_registry", check_registry)
+    router.setup("/_report.csv", cat)
+    router.setup("/_report.json", cat)
+    router.setup("/_images.json", cat)
+    # Compatability for now
     router.setup("/nagios_check_registry", check_registry)
-    router.setup("/report.csv", cat)
-    router.setup("/report.json", cat)
-    router.setup("/images.json", cat)
 
     web_server = HTTPServer(('', args.port), RegistryHealthHTTPD)
     print("Server started on http://%s:%s" %

@@ -2,8 +2,8 @@
 #
 # (C) 2024, Nicolai Langfeldt, Schibsted Products and Technology
 #
-# Script to garbage collect our (VGs) docker-registry by comparing the
-# running kubernetes with the things in the registry.
+# Just count the tags in the registry.  This is useful to see if the
+# registry is growing out of control.
 #
 # Prerequisites:
 #
@@ -27,13 +27,13 @@ def main():
     all_tags = []
     num_repos = 0
 
-    reg = Registry.Registry(args.server)
-
     try:
-        repositories = reg.get_repositories()
+        reg = Registry.Registry(args.server)
     except requests.exceptions.ConnectionError as e:
         print("Failed to connect to %s" % args.server)
         sys.exit(1)
+
+    repositories = reg.get_repositories()
 
     for repo_name in repositories:
         num_repos += 1

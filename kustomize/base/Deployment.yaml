@@ -24,7 +24,7 @@ spec:
               name: docker-registry-checker-dev
         livenessProbe:
           httpGet:
-            path: /health
+            path: /_health
             port: 8000
           initialDelaySeconds: 3
           periodSeconds: 60

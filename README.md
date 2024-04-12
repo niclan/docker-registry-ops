@@ -1,6 +1,6 @@
 # Some docker registry ops tools
 
-Some ops tools for docker-registry.
+Some ops tools for docker-registry management:
 
 - `k8s-inventory.py` - Collects a list of images used in your
   kubernetes clusters and saves it in `images.json`
@@ -9,13 +9,15 @@ Some ops tools for docker-registry.
   ones.  See below for more information.
 - `registry-count.py` - Just count the number of tags in your
   registry, for pre-eviction and post-eviction stats.  We went from
-  400K tags to less than 10K.
+  400K tags to less than 10K the first time this was run.
 - `registry-checker.py` - We've seen that some of our pods images have
   gone missing from our registry. Quite likely due to earlier cleanup
   attempts and bugs in early versions of the registry-evictor.  Since
   this has caused major headaches when we've had problems with our
   cluster nodes and the pods needs to respawn on new nodes without the
   image in the local docker cache we want to keep a firm eye on this.
+
+More details below.
 
 Libraries:
 
@@ -80,7 +82,7 @@ you can try pip: `pip3 install -r requirements.txt`
 
 ## Included programs
 
-The suite consists of these programs.
+The suite consists of these programs:
 
 ### `k8s-inventory.py`
 
@@ -170,11 +172,7 @@ how many tags there are pr. repository:
 ./registry-ls.py docker.vgnett.no | cut -d: -f 1 | uniq -c | sort -n >tags-pr-repo.txt
 ```
 
-
-### registry fixer
-
-To be written. Would read the output from the registry-checker and do
-interventions in the filesystem of the registry to fix the problems.
+### Registry issues
 
 Registry issues we've seen:
 
@@ -185,7 +183,10 @@ Registry issues we've seen:
 - Someone saved space by deleting old files in the registry directory
   structure.  The tags will often still be listed but it's impossible
   to get manifests or to delete things to get rid of them.
-  
+- Layers going missing. This is sometimes fixed by restarting the
+  registry.  Sometimes it can be fixed by doing "docker rmi" on the
+  tag and then re-uploading the tag from somewhere it's cached.
+
 ### Inside the docker container
 
 Some relatively simple programs running inside the container in the
@@ -200,17 +201,17 @@ little script replaces cron for our needs.
 #### webserver.py
 
 A quite trivial web server in python to answer the `/_health` calls
-from kubernetes (NOTE to self: Remember to make a meaningful health
-check)
+from kubernetes.
 
-Also serve the images.json file to outside agents so they can merge
-the file from multiple clusters and run `registry-evictor.py` to
-lighten the docker-registry storage needs.
-
-Also provide a endpoint for a nagios (or similar) checker to call and
-get the results of the registry-checker.  Which was the main idea
+`/_nagios_check_registry` is for nagios (or similar) checker to call
+and get the results of the registry-checker.  Which was the main idea
 anyway.  We've seen that docker images go missing over time so we need
-to keep an eye on that.
+to keep an eye on that.  The endpoint returns a multi-line description
+of what the issues are, if you click on the check in nagios all the
+lines will be shown.
+
+`/_images.json`, `/_report.csv` and `/_report.json` enables inspection
+of the reports that goes into the check.
 
 ## Deploying to kubernetes
 
@@ -218,9 +219,8 @@ This requires that you have docker installed to build the needed
 container.
 
 The k8s-inventory/registry-checker programs can be deployed to
-kubernetes to provide a API whereby some kind of checker (e.g. nagios
-plugin?) can make a API call to determine which pods are running
-without their images so that ops can keep an eye on this.
+kubernetes to provide some endpoints to monitor needed and available
+images as described above.
 
 The deployment tool is [`skaffold`](https://skaffold.dev/) which is
 both very nice for the development and also for production deployment.
@@ -232,7 +232,7 @@ cluster role to get all pods across all namespaces.
 
 To deploy to multiple environments skaffold profiles are used combined
 with kustomize which is (now) a part kubectl.  If you have a look at
-skaffold.yaml and the profiles part you'll see that the project is set
+`skaffold.yaml` and the profiles part you'll see that the project is set
 up to deploy to a namespace called "ops-dev" by default.
 
 This is defined in [`kustomize/dev`](kustomize/dev).  When running
@@ -254,27 +254,33 @@ To deploy to prod: `make prod` (`skaffold run -p prod`, also builds
 secrets and checks git).
 
 Deploying to stage and prod requires that all git managed files are
-comitted and up to date in git.  The Makefile checks this.
+comitted and up to date in git.  The Makefile checks this.  This is
+because the image is tagged with the git digest and the digest must
+reflect all the actuall files that go into the image.
 
 ## Secrets
+
+This turns out to be not actually useful for this project, unless you
+want to requite a secret to get access to the endpoints.  The
+webserver does not support using this.
 
 We use Hashicorp vault to store secrets.  To support getting secrets
 from vault into the deployment the directory `vault` is provided with
 a Makefile using `consul-template` to write a manifest file into the
 kustomize/base directory.
 
-The manifest file is is secret.yaml from secret-yaml.ctmpl.  This can
-be used for secretRef to put the secrets into the pod environment.
+The manifest file is is `secret.yaml` from `secret-yaml.ctmpl`.  This
+can be used for secretRef to put the secrets into the pod environment.
 This is defined in
 [`kustomize/base/Deployment.yaml`](kustomize/base/Deployment.yaml)
 
 The files that kustomize uses as input must reside within the
 kustomize file hierarchy, therefore the Makefile writes to
-../kustomize/base. If you use the secret.yaml file it will be subject
-to kustomize's customizations.
+`../kustomize/base`. If you use the `secret.yaml` file it will be
+subject to kustomize's customizations.
 
 The template files are only processed by `consul-template`, so you
 have to make new ones to get it to collect keys from different vault
 paths for each of the environments/namespaces you deploy to and
 generate manifests into the correct directories and then update the
-kustomization.yaml files to pick them up.
+`kustomization.yaml` files to pick them up.
