@@ -172,8 +172,11 @@ class Registry:
 
         On error returns: "", {}, ""
 
-        Bugs: No information about any error escapes from this
-        function, but _json_get will print a error message.
+        Bugs:
+        - No information about any error escapes from this
+          function, but _json_get will print a error message.
+        - Not all kinds of images have a manifest, I've not
+          mapped it out
 
         """
 

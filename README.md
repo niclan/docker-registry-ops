@@ -39,6 +39,8 @@ that will:
 
 ## AI support
 
+There is no AI builtin in these tools.
+
 When writing this github copilot has been sometimes a quite able
 helper, sometimes quite helpless.  On the whole it's saved me some
 percent of typing and some time on looking up things.  But it also
@@ -65,7 +67,8 @@ This software is written in python.
 You need:
 
 - Python 3 and pip
-- A docker registry
+- jq
+- One or more docker registries
 - One or more kubernetes clusters
 - kubectl cli executable
 
@@ -171,6 +174,45 @@ how many tags there are pr. repository:
 ```
 ./registry-ls.py docker.vgnett.no | cut -d: -f 1 | uniq -c | sort -n >tags-pr-repo.txt
 ```
+
+### `image-list.sh`
+
+A very simple shell script to grep out all the images associated with
+a specific registry from images.json to images.lst.  The result file
+just contains a list of images, one pr. line.
+
+Usage example:
+
+```console
+$ image-list.sh docker.vgnett.no
+676 images.lst
+```
+
+The line of output shows how many ended up `images.lst`.
+
+The result is a list of the images of the images from the given that
+are in actuall use in your clusters.  In a migration scenario these
+are the images you need to copy from the old registry to the new
+registry.
+
+### `registry-migrate.sh`
+
+A shell wrapper around skopeo to migrate the images listed in
+`images.lst` (see above) from the origin registry to the destination
+registry.
+
+Before using it you have to install skopeo which is available in
+Debian and many other distributions: `apt install skopeo`.  skopeo is
+used to do the actuall migration.
+
+Usage example:
+
+1. `./k8s-invntory.py` to make images.json (see complete usage above)
+1. `./image-list.sh docker.vgnett.no` to make images.lst
+1. Review and images.lst in case you don't want to migrate everything
+1. If needed: `skopeo login docker.vgnett.no`
+1. If needed: `skopeo login harbor.vgnett.no`
+1. `./registry-migrate.sh docker.vgnett.no harbor.vgnett.no`
 
 ### Registry issues
 
