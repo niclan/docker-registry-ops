@@ -66,7 +66,7 @@ This software is written in python.
 
 You need:
 
-- Python 3 and pip
+- Python 3.7 or later and pip
 - jq
 - One or more docker registries
 - One or more kubernetes clusters

@@ -278,6 +278,8 @@ def main():
 
     repos = args.repository or reg.get_repositories()
 
+    sys.stdout.reconfigure(line_buffering=True)
+
     for repo_name in repos:
         repo_lookup(reg, repo_name)
         evict_repo(reg, repo_name)
