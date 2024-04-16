@@ -16,6 +16,8 @@ case $1 in
     echo "  REGISTRY: The registry to search for images." >&2
     echo "  NEWREGISTRY: The registry to migrate the images to." >&2
     echo "  -r: Remove the images from the source registry." >&2
+    echo ""
+    echo "The file images.lst must exist and contain the images to migrate." >&2
     exit 0
     ;;
   '-r') REMOVE=1; shift ;;
@@ -43,6 +45,7 @@ while read -r IMAGE; do
     echo "Migrating $IMAGE from $OLDREG to $NEWREG"
     REPOTAG=$(cut -d/ -f2- <<< $IMAGE)
     skopeo copy docker://$OLDREG/$REPOTAG docker://$NEWREG/$REPOTAG
-    ./repository-rm.py -s $OLDREG $REPOTAG
+    case $REMOVE in
+      1) ./repository-rm.py $OLDREG $REPOTAG ;;
+    esac
 done < images.lst
-
