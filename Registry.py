@@ -11,8 +11,8 @@
 # Some REST helpers
 # We should have one that understands pagination, but whatever
 
+import sys
 import requests
-
 
 def _get_link(headers):
     """Get URL from the Link header if rel is "next" and return it.
