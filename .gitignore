@@ -5,6 +5,7 @@ logs/
 
 # Build and run artifacts for this project
 images.json
+images.lst
 check-report-*
 secret.yaml
 secrets.sh
