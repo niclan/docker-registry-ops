@@ -230,11 +230,11 @@ class Registry:
 
         if not self.do_delete:
             if self.verbose:
-                print("-- (not really) Deleting manifest for %s:%s" % (repo, digest))
+                print("-- (not really) Deleting manifest for %s@%s" % (repo, digest))
             return
 
         if self.verbose:
-            print("-- Deleting manifest for %s:%s" % (repo, digest))
+            print("-- Deleting manifest for %s@%s" % (repo, digest))
 
         r = requests.delete("https://%s/v2/%s/manifests/%s" % (self.registry, repo, digest))
         if r.status_code != 200 and r.status_code != 202:
