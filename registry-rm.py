@@ -13,8 +13,8 @@ import Registry
 
 def main():
     parser = argparse.ArgumentParser(description='Delete registry tags')
-    parser.add_argument('-s', '--server', help='Registry server')
-    parser.add_argument('image', action='append', nargs='?', help='Image(s) to delete')
+    parser.add_argument('server', help='Registry server')
+    parser.add_argument('image', action='store', nargs='+', help='Image(s) to delete')
     args = parser.parse_args()
 
     ntags = 0
