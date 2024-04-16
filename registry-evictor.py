@@ -75,7 +75,7 @@ def repo_lookup(reg, repo_name):
         tagkey = f'{repo_name}:{tag}'
 
         spinner.next()
-        (tagdig, manifest) = reg.get_manifest(repo_name, tag)
+        (tagdig, manifest, _) = reg.get_manifest(repo_name, tag)
         
         if len(manifest) == 0:
             problems += 1
