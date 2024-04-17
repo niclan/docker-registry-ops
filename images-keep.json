@@ -1,0 +1,1 @@
+[ { "pattern": "^vglab/.*-base-image$", "keep": "latest" } ]
