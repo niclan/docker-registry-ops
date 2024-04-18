@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
 #
-# Script to garbage collect our (VGs) docker-registry by comparing the
-# running kubernetes with the things in the registry.
+# Script to evict unused docker images from our (VGs) docker-registry
+# by comparing the running kubernetes with the things in the registry.
+#
+# With docker registry, to actually save disk space you need to run a
+# garbage collection afterwards.
 #
 # Copyright (C) 2024, Nicolai Langfeldt, Schibsted Products and Technology
 #
 # Prerequisites:
-# - apt install python3-requests
-# - pip install python-dateutil
-# - run k8s-inventory.py FIRST to get a list of all
+# - See README.md
+# - Run k8s-inventory.py FIRST to get a list of all
 #   active images in our k8s clusters into images.json
+# - Run this script
 # - After running this script let loose the docker-registry
 #   garbage-collector inside the docker container:
 #   `docker exec -it $CONTAINER /bin/registry garbage-collect /etc/docker/registry/config.yml`
 #
-# Bugs:
-# - Does not support docker-registry request pagiation.
-#   - Instead submitting n=10000
-#
 # Features:
-# - Multiple tags can refer to the same manifest. The script does not
+# - Multiple tags can refer to the same image. The script does not
 #   know and will delete the manifest if one tag is marked for
 #   eviction.  The api does not support deleting tags...
 #
@@ -279,14 +278,13 @@ def main():
     reg.verbose = True
     reg.debug = debug
 
-    global keep
-    keep = load_keep_list()
+    load_keep_list()
     images = load_image_list(reg)
 
     if not args.delete:
-        print("***Not deleting anything, just looking around***")
+        print("***Not evicting anything, just looking around***")
     else:
-        print("***WILL DELETE MANIFESTS!!!!***")
+        print("***WILL EVICT IMAGES!!!!***")
 
     repos = args.repository or reg.get_repositories()
 

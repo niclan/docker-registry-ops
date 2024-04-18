@@ -38,9 +38,11 @@ def keep_by_rule(repo_name, tag):
         if "pattern" in rule:
             if re.match(rule["pattern"], repo_name):
                 if "keep" in rule:
+                    if rule["keep"] == "none":
+                        return False
                     if rule["keep"] == "all":
                         return True
-                    if rule["keep"] == "latest" and tag == "latest":
+                    if rule["keep"] == tag:
                         return True
                 
                 else:

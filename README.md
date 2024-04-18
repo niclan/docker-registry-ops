@@ -107,11 +107,13 @@ it's assumptions about what is safe to delete is wrong for your site.
 **Use at your own risk!**
 
 This script needs the `images.json` file to work.  If the file is old
-or trunkated it may delete the wrong things.  Once you have a
+or somehow trunkated it may delete the wrong things.  Once you have a
 reasonably fresh one you can run `./registry-evictor.py`. It will loop
 over all repositories and tags and:
 
 1. If there are less than 10 images listed it aborts
+1. Images matching keep rules in images-keep.json will be kept in any
+   case
 1. For repositories which are not listed (as used) in `images.json`
    delete all the manifests.
 1. For repositories that are listed (as used) in `images.json` it
@@ -125,6 +127,68 @@ information about how to run it and restrictions.
 
 After this completes you can run the docker-registry garbage
 collection routine to reclaim disk space.
+
+#### images-keep.json
+
+A json file containing a array of keep rules that matches tags:
+
+```json
+[
+  {
+    "pattern": "^vglab/.*-base-image$",
+    "keep": "latest"
+  }
+]
+```
+
+Each rule has a `pattern` to match a repository name, this is
+interpreted as a regular expression.  In our environment four
+repositories are matched by this rule, they are pre-built images on
+top of which other builds are made.
+
+For the matched repositories the tags named by the "keep" attribute is
+kept.  There are two special values:
+
+- "all" means all the tags
+- "none" means evict all of the tags (or possibly most of the tags)
+
+Everything else is literal string values.  "latest" is also a literal
+value, it does not mean to keep the last tag, only to keep the
+"latest" tag.
+
+#### Error conditions
+
+On our docker-registry there are quite a few corrupted images. If the
+evicter prints this:
+
+```log
+REPO ops/certmon
+*E* 4 problem manifests with ops/certmon
+* Delete some tags in repo (newer last): ['dc23f22']
+* Tags to keep: ['dc23f22']
+* Keeping all tags, nothing to do
+```
+
+The "*E*" line means that for 4 of the tags it was impossible to get a
+digest and therefore also impossible to delete the tag - since a
+digest is needed for that.
+
+We have seen that with our docker-registry, when the evicter is
+running, some random images and/or image layers go missing.  This is
+evidenced by the registry-checker component running in each of our
+kubernetes clusters which is monitored by nagios going to yellow (at
+least for production namespaces).  Clicking on the nagios warning
+shows some lines of additional output from the plugin showing which
+images are missing, they're listed as `[no digest]`, mostly they've
+gone corrupt.
+
+The logs show that these images were not deleted by the evicter and
+the garbage collector hasn't even been run yet.  It is our conclusion
+that at least our docker-registry is corrupted and that this is
+triggering bugs that causes some randomness when evicting images.  We
+have no idea if this is hitting other docker registries and do not
+have capacity to lab test this with a clean install and simulated
+push/pull/evictions.
 
 ### `registry-count.py`
 
