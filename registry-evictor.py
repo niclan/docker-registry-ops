@@ -70,6 +70,7 @@ def repo_lookup(reg, repo_name):
         return
 
     problems = 0
+    problem_tags = []
     
     for tag in tags:
         tagkey = f'{repo_name}:{tag}'
@@ -79,10 +80,11 @@ def repo_lookup(reg, repo_name):
         
         if len(manifest) == 0:
             problems += 1
+            problem_tags.append(tag)
             continue
         
         if "history" not in manifest:
-            print("*E* Weird manifest: %s" % manifest)
+            print("*E* Weird manifest: %s / %s" % (tag, manifest))
             sys.exit(1)
 
         if tag not in repos[repo_name]:
@@ -93,7 +95,8 @@ def repo_lookup(reg, repo_name):
         repos[repo_name][tag]["digest"] = tagdig
 
     if problems > 0:
-        print("*E* %d problem manifests with %s" % (problems, repo_name))
+        print("*E* %d problem tags ignored in %s (%s)" % (problems, repo_name, problem_tags))
+
 
 # Eviction logic
 
