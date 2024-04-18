@@ -25,9 +25,9 @@
 #
 # Usage:
 #   With log:
-#     PYTHONUNBUFFERED=TRUE ./registry-evictor.py -d docker.example.com 2>&1 | tee eviction-$(date '+%F-%T').log
+#     ./registry-evictor.py -d docker.example.com 2>&1 | tee eviction-$(date '+%F-%T').log
 #   Without log:
-#     ./registry-evictor.py -d
+#     ./registry-evictor.py -d docker.example.com
 # 
 
 import re
@@ -36,9 +36,10 @@ import json
 import datetime
 import requests
 import argparse
-from Registry import Registry
+from keeprules import *
 from Spinner import Spinner
 from dateutil import parser
+from Registry import Registry
 
 spinner = Spinner()
 used_repo = {}
@@ -168,6 +169,10 @@ def delete_most_manifests(reg, repo_name):
         if repos[repo_name][tag]['digest'] in digests_to_keep:
             print("+ Keep by digest: %s" % repo_tag)
             continue
+
+        if keep_by_rule(repo_name, tag):
+            print("+ Keep by rule: %s" % repo_tag)
+            continue
         
         print("? %s: %s" % (tag, repos[repo_name][tag]))
         print("- Delete %s" % repo_tag)
@@ -189,6 +194,10 @@ def delete_all_manifests(reg, repo_name):
     if pause: any_key = input("Press enter to proceed")
 
     for tag in repos[repo_name]:
+        if keep_by_rule(repo_name, tag):
+            print("+ Keep by rule: %s" % repo_tag)
+            continue
+
         repo_tag = f'{repo_name}:{tag}'
         print("- Delete %s" % repo_tag)
         reg.delete_manifest(repo_name, repos[repo_name][tag]['digest'])
@@ -203,7 +212,7 @@ def evict_repo(reg, repo_name):
         print(" * Repo %s has no tags, nothing to do" % repo_name)
         return
 
-    if repo_name in used_repo:
+    if repo_name in used_repo or keep_repo_by_rule(repo_name):
         delete_most_manifests(reg, repo_name)
         return
 
@@ -246,6 +255,7 @@ def load_image_list(reg):
     return images
 
 
+
 def main():
     parser = argparse.ArgumentParser(description='Evict tags/manifests from docker-registry')
     parser.add_argument('-d', '--delete', action='store_true', \
@@ -269,6 +279,8 @@ def main():
     reg.verbose = True
     reg.debug = debug
 
+    global keep
+    keep = load_keep_list()
     images = load_image_list(reg)
 
     if not args.delete:
