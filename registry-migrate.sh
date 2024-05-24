@@ -44,7 +44,7 @@ set -e
 while read -r IMAGE; do
     echo "Migrating $IMAGE from $OLDREG to $NEWREG"
     REPOTAG=$(cut -d/ -f2- <<< $IMAGE)
-    skopeo copy docker://$OLDREG/$REPOTAG docker://$NEWREG/$REPOTAG
+    skopeo copy docker://$OLDREG/$REPOTAG docker://$NEWREG/$REPOTAG || true
     case $REMOVE in
       1) ./repository-rm.py $OLDREG $REPOTAG ;;
     esac
