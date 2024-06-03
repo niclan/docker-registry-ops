@@ -168,7 +168,7 @@ def image_info(tag):
 
     if tag not in images:
         return "no information available"
-    
+
     tag_info = images[tag]
 
     for pod in tag_info.keys():
