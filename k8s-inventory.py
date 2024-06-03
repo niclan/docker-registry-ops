@@ -260,7 +260,7 @@ def main():
             print("Loading from %s" % context)
             config.load_kube_config(context=context)
             k8s = client.CoreV1Api()
-            k8s_batch = client.BatchV1beta1Api()
+            k8s_batch = client.BatchV1Api()
 
             try:
                 load_from_kubernetes(k8s, context=context)
