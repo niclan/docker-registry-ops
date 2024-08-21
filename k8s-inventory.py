@@ -127,7 +127,8 @@ def load_from_kubernetes(k8s, context=None):
 
             if c.state.running is not None:
                 c_age = 0 # now
-            elif pod_age > 0 and c.state.terminated is not None:
+            elif pod_age > 0 and c.state.terminated is not None and
+                c.state.terminated.started_at is not None:
                 # Get the launch time of the container if it's
                 # terminated, and then ignore it if it's older than
                 # max_age
